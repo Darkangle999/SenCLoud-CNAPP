@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically ship CloudSentinel eBPF spool to S3
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

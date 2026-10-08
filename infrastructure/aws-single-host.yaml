@@ -1,0 +1,372 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Low-cost Odineyes host: one encrypted EC2 instance. It can create the
+  CloudFront dashboard distribution or serve as a regional origin behind an
+  existing distribution. No NAT Gateway, ALB, RDS, SSH port, or EIP.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Default/public VPC that will contain the single staging host.
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Public subnet with a route to an Internet Gateway.
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Region-specific Amazon Linux 2023 AMI ID resolved during deployment preflight.
+  InstanceProfileName:
+    Type: String
+    Description: Instance profile output by aws-bootstrap.yaml.
+  ReleaseBucketName:
+    Type: String
+    Description: ReleaseBucketName output by aws-bootstrap.yaml.
+  ReleaseBucketRegion:
+    Type: String
+    Default: us-east-1
+    AllowedPattern: '^[a-z]{2}(?:-gov)?-[a-z0-9-]+-[0-9]+$'
+    Description: Region containing the private release bucket.
+  ReleaseKey:
+    Type: String
+    AllowedPattern: '^releases/[A-Za-z0-9._/-]+[.]zip$'
+    Description: Versioned release zip key uploaded to the release bucket.
+  OnboardingTemplateBucketName:
+    Type: String
+    Description: OnboardingTemplateBucketName output by aws-bootstrap.yaml.
+  OnboardingTemplateRegion:
+    Type: String
+    Default: us-east-1
+    AllowedPattern: '^[a-z]{2}(?:-gov)?-[a-z0-9-]+-[0-9]+$'
+    Description: Region containing the private onboarding-template bucket.
+  OnboardingTemplatePrefix:
+    Type: String
+    Default: cloudformation-onboarding
+    AllowedPattern: '^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$'
+    Description: Private S3 key prefix permitted to hold reusable onboarding YAML files.
+  PublicApiUrl:
+    Type: String
+    Default: ''
+    Description: >
+      Public HTTPS API URL used in customer onboarding callbacks. After the
+      first deployment, set this to the CloudFront DashboardUrl output before
+      any host replacement or fresh deployment.
+  ControlPlaneParameterRegion:
+    Type: String
+    Default: us-east-1
+    AllowedPattern: '^[a-z]{2}(?:-gov)?-[a-z0-9-]+-[0-9]+$'
+    Description: Region containing dashboard and onboarding SSM SecureStrings.
+  RealtimeQueuesJson:
+    Type: String
+    Default: '{}'
+    Description: Region-keyed realtime queue configuration consumed by this host.
+  CreateCloudFrontDistribution:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Create a new dashboard distribution. Set false for a regional origin host.
+  OriginDomainName:
+    Type: String
+    Default: ''
+    Description: Optional existing origin DNS name. Set only when moving this stack's distribution to another regional host.
+  ScannerPrincipalArn:
+    Type: String
+    AllowedPattern: '^arn:aws[a-z-]*:iam::[0-9]{12}:role/.+$'
+    Description: Scanner role ARN the customer onboarding template trusts.
+  ScannerBackend:
+    Type: String
+    Default: python
+    AllowedValues:
+      - python
+      - shadow
+      - go
+    Description: >
+      AWS inventory scanner rollout mode. Keep python for rollback, use shadow
+      for parity observation, and select go only after review.
+  ScannerAccountAllowlist:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^[0-9]{12}(,[0-9]{12})*$'
+    Description: >
+      Optional comma-separated AWS account ids that receive the selected
+      non-Python scanner backend. Other accounts remain on Python.
+  GraphEngine:
+    Type: String
+    Default: auto
+    AllowedValues:
+      - auto
+      - python
+      - shadow
+      - go
+    Description: >
+      Correlated graph detection rollout mode. Auto uses Go for inventories at
+      or above GraphGoMinAssets and Python below it. Shadow compares both while
+      returning Python results.
+  GraphGoMinAssets:
+    Type: Number
+    Default: 1000
+    MinValue: 0
+    MaxValue: 10000000
+    Description: Minimum inventory size at which auto mode selects the Go graph engine.
+  DashboardPasswordParameterName:
+    Type: AWS::SSM::Parameter::Name
+    Default: /odineyes/dashboard/admin-password
+    Description: SecureString containing the dashboard basic-auth password.
+  OnboardingTokenSecretParameterName:
+    Type: AWS::SSM::Parameter::Name
+    Default: /odineyes/onboarding/token-secret
+    Description: >
+      SecureString (32+ chars) signing one-click onboarding session tokens.
+      Without it no launch link can be issued, because an unsigned callback
+      token would be forgeable by anyone who learns the endpoint. Rotating it
+      invalidates outstanding links; connected accounts are unaffected.
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.micro
+      - t3.small
+    Description: Keep t3.micro for the smallest low-cost host.
+
+Conditions:
+  CreateDashboardDistribution: !Equals [!Ref CreateCloudFrontDistribution, 'true']
+  UseExplicitOrigin: !Not [!Equals [!Ref OriginDomainName, '']]
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public HTTP origin for CloudFront; no SSH ingress.
+      VpcId:
+        Ref: VpcId
+      SecurityGroupIngress:
+        - Description: HTTP origin traffic. Caddy basic-auth protects all paths except the HMAC callback.
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - Description: Pull container images, reach AWS APIs, and assume customer roles.
+          IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+
+  OdineyesHost:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType:
+        Ref: InstanceType
+      IamInstanceProfile:
+        Ref: InstanceProfileName
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          GroupSet:
+            - Ref: WebSecurityGroup
+          SubnetId:
+            Ref: PublicSubnetId
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: true
+            VolumeSize: 20
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: ${AWS::StackName}-host
+        - Key: Application
+          Value: Odineyes
+        - Key: Environment
+          Value: staging
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              # Never enable xtrace here: this script obtains the dashboard
+              # password only to generate a one-way Caddy bcrypt hash.
+              set -euo pipefail
+              dnf install -y docker unzip
+              systemctl enable docker
+              systemctl start docker
+
+              app_root=/opt/odineyes
+              rm -rf "$app_root"
+              mkdir -p "$app_root" "$app_root/data"
+              for attempt in $(seq 1 30); do
+                if aws s3 cp "s3://${ReleaseBucket}/${ReleaseKey}" /tmp/odineyes-release.zip --region "${ReleaseBucketRegion}"; then
+                  break
+                fi
+                sleep 5
+              done
+              test -f /tmp/odineyes-release.zip
+              unzip -q /tmp/odineyes-release.zip -d "$app_root"
+              chown -R 10001:10001 "$app_root/data"
+
+              dashboard_password=$(aws ssm get-parameter --name "${DashboardPasswordParameterName}" --with-decryption --query Parameter.Value --output text --region "${ControlPlaneParameterRegion}")
+              onboarding_token_secret=$(aws ssm get-parameter --name "${OnboardingTokenSecretParameterName}" --with-decryption --query Parameter.Value --output text --region "${ControlPlaneParameterRegion}")
+              dashboard_hash=$(docker run --rm caddy:2.8-alpine caddy hash-password --plaintext "$dashboard_password")
+              sed "s|__DASHBOARD_PASSWORD_HASH__|$dashboard_hash|g" "$app_root/deploy/aws/Caddyfile.template" > "$app_root/deploy/aws/Caddyfile"
+              public_api_url="${PublicApiUrl}"
+              cors_origins="*"
+              if [ -n "$public_api_url" ]; then
+                cors_origins="$public_api_url"
+              fi
+
+              cat > "$app_root/odineyes.env" <<ENVFILE
+              AWS_DEFAULT_REGION=${AWS::Region}
+              ODINEYES_AWS_ACCOUNT_ID=${AWS::AccountId}
+              ODINEYES_SCANNER_PRINCIPAL_ARN=${ScannerPrincipalArn}
+              ODINEYES_AWS_SCANNER_BACKEND=${ScannerBackend}
+              ODINEYES_AWS_SCANNER_ACCOUNT_ALLOWLIST=${ScannerAccountAllowlist}
+              ODINEYES_GRAPH_ENGINE=${GraphEngine}
+              ODINEYES_GRAPH_GO_MIN_ASSETS=${GraphGoMinAssets}
+              ODINEYES_TRIVY_VM_TIMEOUT_SECONDS=1800
+              ODINEYES_EBS_SCAN_COOLDOWN_HOURS=12
+              ODINEYES_EBS_DIRECT_MAX_VOLUME_GIB=100
+              ODINEYES_EBS_SNAPSHOT_WAIT_SECONDS=1800
+              ODINEYES_DATABASE_URL=sqlite:////var/lib/odineyes/odineyes.db
+              ODINEYES_ONBOARDING_TEMPLATE_BUCKET=${OnboardingTemplateBucket}
+              ODINEYES_ONBOARDING_TEMPLATE_PREFIX=${OnboardingTemplatePrefix}
+              ODINEYES_ONBOARDING_TEMPLATE_REGION=${OnboardingTemplateRegion}
+              ODINEYES_REALTIME_QUEUES_JSON='${RealtimeQueuesJson}'
+              ODINEYES_REALTIME_WORKER_REGION=${AWS::Region}
+              ODINEYES_PUBLIC_API_URL=$public_api_url
+              ODINEYES_CORS_ORIGINS=$cors_origins
+              ODINEYES_ONBOARDING_TOKEN_SECRET=$onboarding_token_secret
+              PYTHONIOENCODING=utf-8
+              ENVFILE
+
+              docker network create odineyes || true
+              docker build -t odineyes-api:staging -f "$app_root/deploy/aws/Dockerfile.runtime" "$app_root"
+              docker rm -f odineyes-api odineyes-web odineyes-realtime || true
+              docker run -d --name odineyes-api --restart unless-stopped --network odineyes \
+                --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --tmpfs /home/odineyes:rw,noexec,nosuid,size=16m \
+                --env-file "$app_root/odineyes.env" -v "$app_root/data:/var/lib/odineyes" \
+                odineyes-api:staging
+              docker run -d --name odineyes-web --restart unless-stopped --network odineyes -p 80:80 \
+                -v "$app_root/frontend/dist:/srv:ro" \
+                -v "$app_root/deploy/aws/Caddyfile:/etc/caddy/Caddyfile:ro" \
+                caddy:2.8-alpine
+              docker run -d --name odineyes-realtime --restart unless-stopped --network odineyes \
+                --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+                --env-file "$app_root/odineyes.env" \
+                --entrypoint /usr/local/bin/odineyes-realtime odineyes-api:staging
+            - ReleaseBucket:
+                Ref: ReleaseBucketName
+              OnboardingTemplateBucket:
+                Ref: OnboardingTemplateBucketName
+
+  NoCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Condition: CreateDashboardDistribution
+    Properties:
+      CachePolicyConfig:
+        Name:
+          Fn::Sub: ${AWS::StackName}-no-cache
+        DefaultTTL: 0
+        MaxTTL: 1
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  ViewerAuthOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Condition: CreateDashboardDistribution
+    Properties:
+      OriginRequestPolicyConfig:
+        Name:
+          Fn::Sub: ${AWS::StackName}-viewer-auth
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: whitelist
+          Headers:
+            - Authorization
+            - Content-Type
+            - Origin
+            # Required by the signed CloudFormation onboarding callback.
+            - X-API-Key
+            - X-Signature
+            - X-Timestamp
+            - Access-Control-Request-Headers
+            - Access-Control-Request-Method
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: CreateDashboardDistribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: Low-cost Odineyes staging HTTPS endpoint.
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: odineyes-ec2-origin
+            DomainName:
+              Fn::If:
+                - UseExplicitOrigin
+                - Ref: OriginDomainName
+                - Fn::GetAtt:
+                    - OdineyesHost
+                    - PublicDnsName
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        DefaultCacheBehavior:
+          TargetOriginId: odineyes-ec2-origin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          CachePolicyId:
+            Ref: NoCachePolicy
+          OriginRequestPolicyId:
+            Ref: ViewerAuthOriginRequestPolicy
+
+Outputs:
+  DashboardUrl:
+    Condition: CreateDashboardDistribution
+    Description: HTTPS dashboard address. Retrieve the password from the SSM parameter before first sign-in.
+    Value:
+      Fn::Sub:
+        - https://${DistributionDomain}
+        - DistributionDomain:
+            Fn::GetAtt:
+              - Distribution
+              - DomainName
+  HostInstanceId:
+    Description: Use Systems Manager Session Manager; no SSH port is open.
+    Value:
+      Ref: OdineyesHost
+  HostPublicDnsName:
+    Description: CloudFront's HTTP origin. Do not use this as the public API URL.
+    Value:
+      Fn::GetAtt:
+        - OdineyesHost
+        - PublicDnsName

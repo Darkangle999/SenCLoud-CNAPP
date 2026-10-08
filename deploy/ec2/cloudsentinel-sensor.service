@@ -1,0 +1,20 @@
+[Unit]
+Description=CloudSentinel eBPF runtime sensor (continuous; spools to S3 via shipper)
+Documentation=https://github.com/cloudsentinel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# eBPF load (bpf() syscall) + perf buffer need root; simplest and matches BCC.
+User=root
+ExecStartPre=/usr/bin/mkdir -p /var/lib/cloudsentinel
+# No --duration: run forever. --output appends JSON lines to the spool; the
+# shipper timer relays new bytes to S3. Logs go to journald (stderr).
+ExecStart=/usr/bin/python3 /opt/cloudsentinel/ebpf_agent.py \
+  --output /var/lib/cloudsentinel/spool.jsonl --node @NODE@
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

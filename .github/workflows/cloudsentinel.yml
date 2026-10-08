@@ -1,0 +1,275 @@
+# ── Odineyes GitHub Actions CI/CD Template ────────────────
+# Save as: .github/workflows/odineyes.yml
+#
+# This workflow:
+#   1. Runs on every push / PR
+#   2. Scans AWS, Azure, GCP (using repo secrets)
+#   3. Maps findings to CIS + SOC2 + PCI-DSS
+#   4. Fails the pipeline if CRITICAL findings exist
+#   5. Uploads HTML + JSON reports as artifacts
+#   6. Posts a summary comment on PRs
+
+name: Odineyes Security Scan
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Nightly full scan at 02:00 UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Cloud provider to scan"
+        required: false
+        default: "aws"
+        type: choice
+        options: [aws, azure, gcp, all]
+      severity:
+        description: "Fail pipeline on this severity"
+        required: false
+        default: "critical"
+        type: choice
+        options: [critical, high, medium]
+
+env:
+  ODINEYES_VERSION: "2.0.0"
+  REPORT_DIR: ${{ github.workspace }}/security-reports
+
+jobs:
+  # ── Job 1: AWS Security Scan ──────────────────────────────
+  scan-aws:
+    name: "AWS Security Scan"
+    runs-on: ubuntu-latest
+    if: >
+      github.event.inputs.provider == 'aws' ||
+      github.event.inputs.provider == 'all' ||
+      github.event.inputs.provider == ''
+    permissions:
+      id-token: write      # For OIDC auth
+      contents: read
+      pull-requests: write # For PR comments
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC — recommended)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+        # Alternatively use static keys (less secure):
+        # aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        # aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Odineyes
+        run: |
+          pip install -e ".[aws]" --quiet
+        working-directory: ${{ github.workspace }}
+
+      - name: Create report directory
+        run: mkdir -p ${{ env.REPORT_DIR }}
+
+      - name: Run AWS security scan
+        id: aws_scan
+        run: |
+          odineyes scan \
+            --provider aws \
+            --region us-east-1 \
+            --region eu-west-1 \
+            --compliance CIS \
+            --compliance SOC2 \
+            --compliance PCI-DSS \
+            --format all \
+            --output ${{ env.REPORT_DIR }}/aws-report \
+            --fail-on ${{ github.event.inputs.severity || 'critical' }} \
+            --quiet
+        continue-on-error: true  # Capture exit code, handle below
+
+      - name: Parse scan results
+        id: parse
+        if: always()
+        run: |
+          if [ -f "${{ env.REPORT_DIR }}/aws-report.json" ]; then
+            CRITICAL=$(python3 -c "
+          import json
+          d = json.load(open('${{ env.REPORT_DIR }}/aws-report.json'))
+          print(d.get('summary', {}).get('by_severity', {}).get('critical', 0))
+          ")
+            HIGH=$(python3 -c "
+          import json
+          d = json.load(open('${{ env.REPORT_DIR }}/aws-report.json'))
+          print(d.get('summary', {}).get('by_severity', {}).get('high', 0))
+          ")
+            RISK=$(python3 -c "
+          import json
+          d = json.load(open('${{ env.REPORT_DIR }}/aws-report.json'))
+          print(d.get('risk_score', 'N/A'))
+          ")
+            echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+            echo "high=$HIGH" >> $GITHUB_OUTPUT
+            echo "risk_score=$RISK" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const critical = '${{ steps.parse.outputs.critical }}' || '?';
+            const high = '${{ steps.parse.outputs.high }}' || '?';
+            const risk = '${{ steps.parse.outputs.risk_score }}' || '?';
+            const passed = '${{ steps.aws_scan.outcome }}' === 'success';
+            const emoji = passed ? '✅' : '❌';
+            const body = `## ${emoji} Odineyes Security Scan — AWS
+            
+            | Severity | Count |
+            |---|---|
+            | 🔴 Critical | ${critical} |
+            | 🟠 High | ${high} |
+            | 📊 Risk Score | ${risk}/100 |
+            
+            **Compliance:** CIS AWS Foundations · SOC2 · PCI-DSS
+            
+            ${passed ? '✅ Pipeline security gate **PASSED**' : '❌ Pipeline security gate **FAILED** — critical findings detected'}
+            
+            > Full report available in [workflow artifacts](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odineyes-aws-reports-${{ github.run_number }}
+          path: ${{ env.REPORT_DIR }}/
+          retention-days: 30
+
+      - name: Fail if scan found critical issues
+        if: steps.aws_scan.outcome == 'failure'
+        run: |
+          echo "❌ Odineyes found CRITICAL security findings."
+          echo "   Review the uploaded HTML report for details."
+          exit 1
+
+  # ── Job 2: Azure Security Scan ────────────────────────────
+  scan-azure:
+    name: "Azure Security Scan"
+    runs-on: ubuntu-latest
+    if: >
+      github.event.inputs.provider == 'azure' ||
+      github.event.inputs.provider == 'all'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Odineyes
+        run: pip install -e ".[azure]" --quiet
+
+      - name: Run Azure scan
+        run: |
+          mkdir -p ${{ env.REPORT_DIR }}
+          odineyes scan \
+            --provider azure \
+            --subscription-id ${{ secrets.AZURE_SUBSCRIPTION_ID }} \
+            --compliance CIS \
+            --compliance SOC2 \
+            --format all \
+            --output ${{ env.REPORT_DIR }}/azure-report \
+            --fail-on ${{ github.event.inputs.severity || 'critical' }} \
+            --quiet
+
+      - name: Upload Azure reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odineyes-azure-reports-${{ github.run_number }}
+          path: ${{ env.REPORT_DIR }}/
+          retention-days: 30
+
+  # ── Job 3: GCP Security Scan ──────────────────────────────
+  scan-gcp:
+    name: "GCP Security Scan"
+    runs-on: ubuntu-latest
+    if: >
+      github.event.inputs.provider == 'gcp' ||
+      github.event.inputs.provider == 'all'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Odineyes
+        run: pip install -e ".[gcp]" --quiet
+
+      - name: Run GCP scan
+        run: |
+          mkdir -p ${{ env.REPORT_DIR }}
+          odineyes scan \
+            --provider gcp \
+            --project-id ${{ secrets.GCP_PROJECT_ID }} \
+            --compliance CIS \
+            --format all \
+            --output ${{ env.REPORT_DIR }}/gcp-report \
+            --fail-on ${{ github.event.inputs.severity || 'critical' }} \
+            --quiet
+
+      - name: Upload GCP reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odineyes-gcp-reports-${{ github.run_number }}
+          path: ${{ env.REPORT_DIR }}/
+          retention-days: 30
+
+  # ── Job 4: Summarise all scans ────────────────────────────
+  summary:
+    name: "Security Summary"
+    runs-on: ubuntu-latest
+    needs: [scan-aws]
+    if: always()
+    steps:
+      - name: Write job summary
+        run: |
+          echo "## 🛡 Odineyes Multicloud Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Provider | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| AWS | ${{ needs.scan-aws.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reports are available as workflow artifacts." >> $GITHUB_STEP_SUMMARY

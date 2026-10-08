@@ -1,0 +1,9 @@
+[Unit]
+Description=Ship CloudSentinel eBPF spool to S3 (incremental)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/cloudsentinel/ship.env
+ExecStart=/usr/local/bin/cs-ship.sh

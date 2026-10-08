@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Odineyes regional realtime data plane. Deploy once in every enabled platform
+  Region. Creates an encrypted SQS ingestion queue and grants the existing
+  Odineyes scanner role access only to this Region's queues.
+
+Parameters:
+  WorkerRoleName:
+    Type: String
+    AllowedPattern: '^[A-Za-z0-9+=,.@_-]{1,64}$'
+    Description: IAM role name used by the existing Odineyes scanner/worker host.
+
+Resources:
+  RealtimeIngressBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      # EventBridge event-bus policies are limited in size. Tenant permissions
+      # are registered dynamically by the Odineyes API after onboarding, rather
+      # than growing the SQS queue policy one delivery role at a time.
+      Name: !Sub '${AWS::StackName}-realtime-ingress'
+
+  RealtimeDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: ManagedBy
+          Value: Odineyes
+        - Key: Component
+          Value: RegionalRealtimeDLQ
+
+  RealtimeEventDeliveryDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: ManagedBy
+          Value: Odineyes
+        - Key: Component
+          Value: RegionalEventBridgeDLQ
+
+  RealtimeMutationQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt RealtimeDeadLetterQueue.Arn
+        maxReceiveCount: 5
+      Tags:
+        - Key: ManagedBy
+          Value: Odineyes
+        - Key: Component
+          Value: RegionalRealtimeIngress
+
+  RealtimeIngressToQueueRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RealtimeIngressBus
+      Name: !Sub '${AWS::StackName}-realtime-ingress-to-queue'
+      Description: Routes approved customer security mutations to the local worker queue.
+      State: ENABLED
+      EventPattern:
+        source: [aws.ec2, aws.s3, aws.iam, aws.rds, aws.kms, aws.lambda, aws.eks, aws.ecs]
+        detail-type: [AWS API Call via CloudTrail]
+      Targets:
+        - Id: RegionalRealtimeQueue
+          Arn: !GetAtt RealtimeMutationQueue.Arn
+          DeadLetterConfig:
+            Arn: !GetAtt RealtimeEventDeliveryDLQ.Arn
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 8
+
+  RealtimeMutationQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref RealtimeMutationQueue]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowOnlyRegionalIngressRule
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt RealtimeMutationQueue.Arn
+            Condition:
+              # Avoid a circular dependency: EventBridge authorizes the target
+              # while creating the rule, so this queue policy cannot reference
+              # the rule ARN directly. The stack-name prefix remains scoped.
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${AWS::StackName}-*'
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  RealtimeEventDeliveryDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref RealtimeEventDeliveryDLQ]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowIngressRuleFailures
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt RealtimeEventDeliveryDLQ.Arn
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${AWS::StackName}-*'
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  RealtimeWorkerQueuePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      # IAM policies are account-global even though this stack is regional.
+      # Include the Region so identical stack names cannot collide.
+      PolicyName: !Sub 'odineyes-realtime-${AWS::AccountId}-${AWS::Region}'
+      Roles: [!Ref WorkerRoleName]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ConsumeRegionalRealtimeQueue
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt RealtimeMutationQueue.Arn
+          - Sid: RegisterRegionalDeliveryRoles
+            Effect: Allow
+            Action:
+              - events:PutPermission
+              - events:RemovePermission
+              - events:DescribeEventBus
+            Resource: !GetAtt RealtimeIngressBus.Arn
+
+Outputs:
+  Region:
+    Description: AWS Region of this Odineyes regional data plane.
+    Value: !Ref AWS::Region
+  RealtimeQueueUrl:
+    Description: Configure under ODINEYES_REALTIME_QUEUES_JSON for this Region.
+    Value: !Ref RealtimeMutationQueue
+  RealtimeQueueArn:
+    Description: Worker queue ARN. Customer stacks never send directly to this queue.
+    Value: !GetAtt RealtimeMutationQueue.Arn
+  RealtimeIngressBusArn:
+    Description: Pass to customer regional telemetry stacks in this same Region.
+    Value: !GetAtt RealtimeIngressBus.Arn
+  RealtimeIngressBusName:
+    Description: Configure in ODINEYES_REALTIME_QUEUES_JSON as event_bus_arn.
+    Value: !Ref RealtimeIngressBus
+  RealtimeDeadLetterQueueArn:
+    Description: Regional poison-message queue retained for operational inspection.
+    Value: !GetAtt RealtimeDeadLetterQueue.Arn

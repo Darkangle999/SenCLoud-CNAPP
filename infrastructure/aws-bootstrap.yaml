@@ -1,0 +1,382 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Low-cost Odineyes bootstrap: private release/onboarding buckets and the EC2
+  workload identity. It creates no compute, NAT Gateway, database, or load balancer.
+
+Parameters:
+  OnboardingTemplatePrefix:
+    Type: String
+    Default: cloudformation-onboarding
+    AllowedPattern: '^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$'
+    Description: Private S3 key prefix for reusable customer onboarding YAML files.
+  LocalTemplateOperatorPrincipalArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws[a-z-]*:iam::[0-9]{12}:(role|user)/[A-Za-z0-9_+=,.@/-]+$'
+    Description: >-
+      Optional IAM user or role ARN used when Odineyes API runs locally. It gets
+      access only to onboarding templates under OnboardingTemplatePrefix.
+
+Conditions:
+  HasLocalTemplateOperator: !Not [!Equals [!Ref LocalTemplateOperatorPrincipalArn, '']]
+
+Resources:
+  RealtimeIngressBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub '${AWS::StackName}-realtime-ingress'
+
+  ReleaseBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireNonCurrentReleases
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 14
+
+  OnboardingTemplateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOneClickTemplates
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  # The EC2 workload role already has this access through its identity policy.
+  # This optional resource policy supports a local API process without making
+  # the private bucket public or granting access outside the onboarding prefix.
+  OnboardingTemplateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasLocalTemplateOperator
+    Properties:
+      Bucket: !Ref OnboardingTemplateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLocalOperatorTemplateObjects
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub '${OnboardingTemplateBucket.Arn}/${OnboardingTemplatePrefix}/*'
+          - Sid: AllowLocalOperatorTemplatePrefixListing
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action: s3:ListBucket
+            Resource: !GetAtt OnboardingTemplateBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix:
+                  - !Ref OnboardingTemplatePrefix
+                  - !Sub '${OnboardingTemplatePrefix}/*'
+          - Sid: AllowLocalOperatorBucketPostureCheck
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action: s3:GetBucketPolicyStatus
+            Resource: !GetAtt OnboardingTemplateBucket.Arn
+
+  RealtimeDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  RealtimeEventDeliveryDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  RealtimeMutationQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 180
+      MessageRetentionPeriod: 345600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt: [RealtimeDeadLetterQueue, Arn]
+        maxReceiveCount: 5
+
+  RealtimeIngressToQueueRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref RealtimeIngressBus
+      Name: !Sub '${AWS::StackName}-realtime-ingress-to-queue'
+      Description: Routes approved customer security mutations to the Odineyes worker queue.
+      State: ENABLED
+      EventPattern:
+        source: [aws.ec2, aws.s3, aws.iam, aws.rds, aws.kms, aws.lambda, aws.eks, aws.ecs]
+        detail-type: [AWS API Call via CloudTrail]
+      Targets:
+        - Id: RealtimeWorkerQueue
+          Arn:
+            Fn::GetAtt: [RealtimeMutationQueue, Arn]
+          DeadLetterConfig:
+            Arn:
+              Fn::GetAtt: [RealtimeEventDeliveryDLQ, Arn]
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 3600
+            MaximumRetryAttempts: 8
+
+  RealtimeMutationQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - Ref: RealtimeMutationQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowOnlyIngressBusRule
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource:
+              Fn::GetAtt: [RealtimeMutationQueue, Arn]
+            Condition:
+              # The target queue policy must exist before EventBridge creates the
+              # rule. Restrict EventBridge to rules generated by this stack
+              # without creating a Rule <-> QueuePolicy dependency cycle.
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${AWS::StackName}-*'
+              StringEquals:
+                aws:SourceAccount:
+                  Ref: AWS::AccountId
+
+  RealtimeEventDeliveryDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - Ref: RealtimeEventDeliveryDLQ
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowIngressRuleFailures
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource:
+              Fn::GetAtt: [RealtimeEventDeliveryDLQ, Arn]
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/${AWS::StackName}-*'
+              StringEquals:
+                aws:SourceAccount:
+                  Ref: AWS::AccountId
+
+  OdineyesInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: AssumeCustomerReadOnlyRoles
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AssumeOnlyOdineyesCustomerRoles
+                Effect: Allow
+                Action: sts:AssumeRole
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:iam::*:role/*OdineyesReadOnly*
+              - Sid: IdentifyScanner
+                Effect: Allow
+                Action: sts:GetCallerIdentity
+                Resource: '*'
+        - PolicyName: ReadReleaseAndPublishOnboardingTemplates
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadRelease
+                Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  Fn::Sub:
+                    - ${ReleaseBucketArn}/releases/*
+                    - ReleaseBucketArn:
+                        Fn::GetAtt:
+                          - ReleaseBucket
+                          - Arn
+              - Sid: PublishOnboardingTemplates
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  Fn::Sub:
+                    - ${OnboardingBucketArn}/${OnboardingTemplatePrefix}/*
+                    - OnboardingBucketArn:
+                        Fn::GetAtt:
+                          - OnboardingTemplateBucket
+                          - Arn
+              # The onboarding preflight answers "would a customer's launch
+              # link actually work". HeadBucket authorises against ListBucket,
+              # and the bucket-policy check needs its own read.
+              - Sid: InspectOnboardingBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketPolicyStatus
+                Resource:
+                  Fn::GetAtt:
+                    - OnboardingTemplateBucket
+                    - Arn
+              # The decisive preflight check: only CloudFormation can say
+              # whether it will accept the template URL we are about to put in
+              # front of a customer. Read-only — it creates nothing.
+              - Sid: ValidateOnboardingTemplate
+                Effect: Allow
+                Action: cloudformation:ValidateTemplate
+                Resource: '*'
+              - Sid: ReadDashboardPassword
+                Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/odineyes/dashboard/admin-password
+              # Signs one-click onboarding session tokens; read at instance
+              # launch by the single-host UserData.
+              - Sid: ReadOnboardingTokenSecret
+                Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/odineyes/onboarding/token-secret
+              - Sid: DecryptDashboardPassword
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    kms:ViaService:
+                      Fn::Sub: ssm.${AWS::Region}.amazonaws.com
+        - PolicyName: ConsumeRealtimeMutations
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ConsumeRealtimeQueue
+                Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:ChangeMessageVisibility
+                  - sqs:GetQueueAttributes
+                Resource:
+                  Fn::GetAtt: [RealtimeMutationQueue, Arn]
+              - Sid: RegisterCustomerIngressPermissions
+                Effect: Allow
+                Action:
+                  - events:PutPermission
+                  - events:RemovePermission
+                  - events:DescribeEventBus
+                Resource:
+                  Fn::GetAtt: [RealtimeIngressBus, Arn]
+
+  OdineyesInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: OdineyesInstanceRole
+
+Outputs:
+  ReleaseBucketName:
+    Description: Private bucket for signed Odineyes release bundles.
+    Value:
+      Ref: ReleaseBucket
+  OnboardingTemplateBucketName:
+    Description: Set this as ODINEYES_ONBOARDING_TEMPLATE_BUCKET on the API host.
+    Value:
+      Ref: OnboardingTemplateBucket
+  OnboardingTemplatePrefix:
+    Description: Set this as ODINEYES_ONBOARDING_TEMPLATE_PREFIX on the API host.
+    Value:
+      Ref: OnboardingTemplatePrefix
+  LocalTemplateOperatorPrincipalArn:
+    Condition: HasLocalTemplateOperator
+    Description: Local API principal granted scoped onboarding-template access.
+    Value: !Ref LocalTemplateOperatorPrincipalArn
+  InstanceProfileName:
+    Description: Supply this to the single-host stack.
+    Value:
+      Ref: OdineyesInstanceProfile
+  ScannerPrincipalArn:
+    Description: Supply this to the single-host stack and customer trust policies.
+    Value:
+      Fn::GetAtt:
+        - OdineyesInstanceRole
+        - Arn
+  InstanceRoleName:
+    Description: Pass this to aws-regional-realtime.yaml when adding a supported Region.
+    Value:
+      Ref: OdineyesInstanceRole
+  RealtimeQueueUrl:
+    Description: Long-polled queue consumed by the Go real-time worker.
+    Value:
+      Ref: RealtimeMutationQueue
+  RealtimeQueueArn:
+    Description: Worker queue ARN. Customer stacks never send directly to this queue.
+    Value:
+      Fn::GetAtt: [RealtimeMutationQueue, Arn]
+  RealtimeIngressBusArn:
+    Description: Pass to customer onboarding stacks in this same Region.
+    Value:
+      Fn::GetAtt: [RealtimeIngressBus, Arn]
+  RealtimeIngressBusName:
+    Description: Configure with the worker queue for this Region.
+    Value:
+      Ref: RealtimeIngressBus
+  RealtimeEventDeliveryDLQArn:
+    Description: EventBridge-to-worker-queue delivery failures.
+    Value:
+      Fn::GetAtt: [RealtimeEventDeliveryDLQ, Arn]
+  RealtimeDeadLetterQueueArn:
+    Description: Poison-message queue for operational inspection.
+    Value:
+      Fn::GetAtt: [RealtimeDeadLetterQueue, Arn]

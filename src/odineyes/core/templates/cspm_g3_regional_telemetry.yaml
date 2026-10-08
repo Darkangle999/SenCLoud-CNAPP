@@ -1,0 +1,237 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  CSPM-G3 regional telemetry. Deploy once in each monitored customer Region,
+  after the one-time account foundation stack. Creates no CSPM read role.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Odineyes regional event delivery
+        Parameters:
+          - RealtimeEventBusArn
+      - Label:
+          default: Regional CloudTrail (optional)
+        Parameters:
+          - EnableRealtimeCloudTrail
+          - RealtimeTrailRetentionDays
+
+Parameters:
+  RealtimeEventBusArn:
+    Type: String
+    AllowedPattern: "^arn:aws[a-z-]*:events:[a-z0-9-]+:[0-9]{12}:event-bus/[A-Za-z0-9_.-]{1,256}$"
+    Description: Odineyes EventBridge ingress bus in this same AWS Region.
+
+  EnableRealtimeCloudTrail:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Create a dedicated regional CloudTrail trail for write-only management
+      events. Leave false if this Region already has a suitable active trail.
+
+  RealtimeTrailRetentionDays:
+    Type: Number
+    Default: 90
+    MinValue: 7
+    MaxValue: 3653
+    Description: Days to retain dedicated realtime CloudTrail logs.
+
+Conditions:
+  CreateRealtimeCloudTrail: !Equals [!Ref EnableRealtimeCloudTrail, "true"]
+
+Resources:
+  RealtimeDeliveryDLQ:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  RealtimeDeliveryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Delivers filtered regional CloudTrail mutations to the Odineyes ingress bus.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/odineyes-security-mutations-${AWS::AccountId}-${AWS::Region}"
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: SendOnlyToOdineyesRegionalIngressBus
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Ref RealtimeEventBusArn
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+
+  RealtimeMutationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "odineyes-security-mutations-${AWS::AccountId}-${AWS::Region}"
+      Description: Sends only security-relevant AWS mutations to the Odineyes ingress bus.
+      State: ENABLED
+      EventPattern:
+        source: [aws.ec2, aws.s3, aws.iam, aws.rds, aws.kms, aws.lambda, aws.eks, aws.ecs]
+        detail-type: [AWS API Call via CloudTrail]
+        detail:
+          eventName:
+            - AuthorizeSecurityGroupIngress
+            - RevokeSecurityGroupIngress
+            - ModifySecurityGroupRules
+            - CreateSecurityGroup
+            - DeleteSecurityGroup
+            - PutBucketPolicy
+            - DeleteBucketPolicy
+            - PutBucketAcl
+            - PutPublicAccessBlock
+            - DeletePublicAccessBlock
+            - AttachRolePolicy
+            - DetachRolePolicy
+            - PutRolePolicy
+            - DeleteRolePolicy
+            - UpdateAssumeRolePolicy
+            - CreatePolicyVersion
+            - SetDefaultPolicyVersion
+            - CreateAccessKey
+            - DeleteAccessKey
+            - ModifyDBInstance
+            - ModifyDBCluster
+            - PutKeyPolicy
+            - UpdateFunctionConfiguration
+            - UpdateClusterConfig
+            - UpdateService
+      Targets:
+        - Id: OdineyesRealtimeIngressBus
+          Arn: !Ref RealtimeEventBusArn
+          RoleArn: !GetAtt RealtimeDeliveryRole.Arn
+          DeadLetterConfig:
+            Arn: !GetAtt RealtimeDeliveryDLQ.Arn
+
+  RealtimeDeliveryDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref RealtimeDeliveryDLQ]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt RealtimeDeliveryDLQ.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt RealtimeMutationRule.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  RealtimeCloudTrailLogBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateRealtimeCloudTrail
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: RetainRealtimeCloudTrailLogs
+            Status: Enabled
+            ExpirationInDays: !Ref RealtimeTrailRetentionDays
+            NoncurrentVersionExpiration:
+              NoncurrentDays: !Ref RealtimeTrailRetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  RealtimeCloudTrailLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: CreateRealtimeCloudTrail
+    Properties:
+      Bucket: !Ref RealtimeCloudTrailLogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt RealtimeCloudTrailLogBucket.Arn
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub "${RealtimeCloudTrailLogBucket.Arn}/odineyes/realtime/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt RealtimeCloudTrailLogBucket.Arn
+              - !Sub "${RealtimeCloudTrailLogBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  RealtimeCloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: CreateRealtimeCloudTrail
+    DependsOn: RealtimeCloudTrailLogBucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TrailName: !Sub "odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+      S3BucketName: !Ref RealtimeCloudTrailLogBucket
+      S3KeyPrefix: odineyes/realtime
+      IsLogging: true
+      IsMultiRegionTrail: false
+      IncludeGlobalServiceEvents: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - IncludeManagementEvents: true
+          ReadWriteType: WriteOnly
+
+Outputs:
+  Region:
+    Description: Customer Region covered by this telemetry stack.
+    Value: !Ref AWS::Region
+  RealtimeDeliveryRoleArn:
+    Description: Register this exact EventBridge delivery role with Odineyes for this Region.
+    Value: !GetAtt RealtimeDeliveryRole.Arn
+  RealtimeRuleArn:
+    Description: EventBridge rule that filters the CloudTrail mutation stream.
+    Value: !GetAtt RealtimeMutationRule.Arn
+  RealtimeCloudTrailArn:
+    Condition: CreateRealtimeCloudTrail
+    Description: Dedicated regional write-management-event CloudTrail trail.
+    Value: !GetAtt RealtimeCloudTrail.Arn

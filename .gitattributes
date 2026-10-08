@@ -1,0 +1,2 @@
+scripts/install-trivy.sh text eol=lf
+deploy/aws/deploy-release.sh text eol=lf

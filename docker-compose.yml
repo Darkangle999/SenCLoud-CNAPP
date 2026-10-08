@@ -1,0 +1,86 @@
+version: "3.9"
+
+x-odineyes-env: &cs-env
+  ODINEYES_NEO4J_URI: bolt://localhost:7687
+  ODINEYES_NEO4J_PASSWORD: ${ODINEYES_NEO4J_PASSWORD:-}
+  ODINEYES_POLL_INTERVAL: "30"
+  AWS_DEFAULT_REGION: us-east-1
+  ODINEYES_AWS_SCANNER_BACKEND: ${ODINEYES_AWS_SCANNER_BACKEND:-python}
+  ODINEYES_AWS_SCANNER_ACCOUNT_ALLOWLIST: ${ODINEYES_AWS_SCANNER_ACCOUNT_ALLOWLIST:-}
+  ODINEYES_SQS_URL: ${ODINEYES_SQS_URL:-}
+  # Container-scan supply-chain + audit knobs (cloud/trivy_scanner.py, cloud/nvd_audit.py).
+  # The image self-pins the trivy binary via ODINEYES_TRIVY_SHA256_FILE; these are
+  # optional extra controls — empty = off, so they're safe to leave unset.
+  ODINEYES_TRIVY_SHA256: ${ODINEYES_TRIVY_SHA256:-}    # extra explicit binary pin
+  ODINEYES_NVD_AUDIT: ${ODINEYES_NVD_AUDIT:-}          # =1 to cross-check trivy findings vs NVD
+  ODINEYES_NVD_FEED_DIR: ${ODINEYES_NVD_FEED_DIR:-}    # local NVD-2.0 mirror for offline audit
+  ODINEYES_TRIVY_VM_TIMEOUT_SECONDS: ${ODINEYES_TRIVY_VM_TIMEOUT_SECONDS:-1800}
+  ODINEYES_EBS_SCAN_COOLDOWN_HOURS: ${ODINEYES_EBS_SCAN_COOLDOWN_HOURS:-12}
+  ODINEYES_EBS_DIRECT_MAX_VOLUME_GIB: ${ODINEYES_EBS_DIRECT_MAX_VOLUME_GIB:-100}
+  ODINEYES_EBS_SNAPSHOT_WAIT_SECONDS: ${ODINEYES_EBS_SNAPSHOT_WAIT_SECONDS:-1800}
+
+services:
+  # 1. The Security Graph (Neo4j)
+  neo4j:
+    image: neo4j:latest
+    container_name: odineyes_graph_primary
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=neo4j:${ODINEYES_NEO4J_PASSWORD}
+    volumes:
+      - ./data/neo4j/data:/data
+
+  # 2. The Backend API Server (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odineyes_api
+    depends_on:
+      - neo4j
+    ports:
+      - "8000:8000"
+    volumes:
+      - ~/.aws:/home/cs/.aws:ro  # live scans need AWS credentials
+      # Persist onboarding ExternalIds, scan state, and findings across rebuilds.
+      - ./data/api:/var/lib/odineyes
+    environment:
+      <<: *cs-env
+      # Docker service DNS, not localhost: API and Neo4j run in separate containers.
+      ODINEYES_NEO4J_URI: bolt://neo4j:7687
+      # Local scanner identity. Compose mounts ~/.aws below; select the
+      # non-root profile explicitly so boto3 never falls back to root/default.
+      # Production ECS/EKS deployments override/remove AWS_PROFILE and use their
+      # workload role instead of a mounted credentials directory.
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SDK_LOAD_CONFIG: "1"
+      ODINEYES_AWS_ACCOUNT_ID: ${ODINEYES_AWS_ACCOUNT_ID:-}
+      ODINEYES_SCANNER_PRINCIPAL_ARN: ${ODINEYES_SCANNER_PRINCIPAL_ARN:-}
+      # One-click onboarding needs only private S3 template hosting. No customer
+      # callback reaches this local API; return-tab STS verification completes it.
+      ODINEYES_ONBOARDING_TEMPLATE_BUCKET: ${ODINEYES_ONBOARDING_TEMPLATE_BUCKET:-}
+      ODINEYES_ONBOARDING_TEMPLATE_REGION: ${ODINEYES_ONBOARDING_TEMPLATE_REGION:-us-east-1}
+      ODINEYES_DATABASE_URL: sqlite:////var/lib/odineyes/odineyes.db
+      AWS_CONFIG_FILE: /home/cs/.aws/config
+      AWS_SHARED_CREDENTIALS_FILE: /home/cs/.aws/credentials
+    command: ["uvicorn", "odineyes.api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  # Optional Tetragon shipper. Start with: docker compose --profile runtime up
+  ebpf-sensor:
+    profiles: ["runtime"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: odineyes_ebpf_sensor
+    network_mode: "host"
+    privileged: true  # Required for bpf() syscalls and CO-RE tracing
+    pid: "host"       # Required to monitor host processes
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /sys/kernel/btf/vmlinux:/sys/kernel/btf/vmlinux:ro  # Mount Kernel BTF for CO-RE
+      - /var/run/cilium/tetragon:/var/run/cilium/tetragon:ro
+    environment:
+      <<: *cs-env
+    command: ["python", "-m", "odineyes.sensor.tetragon_shipper"]

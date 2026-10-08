@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1080" viewBox="0 0 1800 1080" role="img" aria-labelledby="title desc">
+  <title id="title">CloudSentinel CSPM technical reference architecture</title>
+  <desc id="desc">AWS role-only onboarding sends read-only configuration collection through normalizers into a relational CSPM data store. Policy evaluation, in-memory asset graph analysis, IaC scanning and compliance snapshots feed the CSPM UI and workflow actions. Neo4j is optional only.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M0,0 L10,6 L0,12 z" fill="#426a93"/></marker>
+    <marker id="arrowGrey" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto"><path d="M0,0 L10,6 L0,12 z" fill="#8998a8"/></marker>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 38px; font-weight: 700; fill: #17365d; }
+      .subtitle { font-family: Arial, sans-serif; font-size: 20px; fill: #55718e; }
+      .zone { fill: #f5f9fd; stroke: #9ec1e1; stroke-width: 2; rx: 20; }
+      .zoneLabel { font-family: Arial, sans-serif; font-size: 21px; font-weight: 700; fill: #2f75b5; letter-spacing: 1px; }
+      .node { fill: #ffffff; stroke: #4d88bd; stroke-width: 2.5; rx: 15; }
+      .nodeDark { fill: #e8f2fb; stroke: #2f75b5; stroke-width: 3; rx: 15; }
+      .nodeGreen { fill: #ecf9f4; stroke: #2a9d72; stroke-width: 2.5; rx: 15; }
+      .nodeGold { fill: #fff7e7; stroke: #e4a13a; stroke-width: 2.5; rx: 15; }
+      .nodeGrey { fill: #fafbfc; stroke: #8998a8; stroke-width: 2.5; stroke-dasharray: 10 7; rx: 15; }
+      .label { font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; fill: #17365d; text-anchor: middle; }
+      .small { font-family: Arial, sans-serif; font-size: 16px; fill: #49677f; text-anchor: middle; }
+      .tiny { font-family: Arial, sans-serif; font-size: 14px; fill: #62788f; text-anchor: middle; }
+      .arrow { fill: none; stroke: #426a93; stroke-width: 3; marker-end: url(#arrow); }
+      .optional { fill: none; stroke: #8998a8; stroke-width: 3; stroke-dasharray: 10 7; marker-end: url(#arrowGrey); }
+      .lineLabel { font-family: Arial, sans-serif; font-size: 15px; fill: #55718e; font-weight: 700; }
+    </style>
+  </defs>
+  <rect width="1800" height="1080" fill="#ffffff"/>
+  <text class="title" x="80" y="70">CloudSentinel CSPM technical reference architecture</text>
+  <text class="subtitle" x="80" y="105">AWS-first, agentless, evidence-backed posture management</text>
+
+  <rect class="zone" x="65" y="150" width="470" height="780"/>
+  <text class="zoneLabel" x="95" y="190">CUSTOMER CLOUD BOUNDARY</text>
+  <rect class="node" x="125" y="250" width="350" height="105"/>
+  <text class="label" x="300" y="295">Customer AWS account</text>
+  <text class="small" x="300" y="324">configuration metadata and APIs</text>
+  <rect class="nodeGold" x="125" y="540" width="350" height="105"/>
+  <text class="label" x="300" y="585">IaC input</text>
+  <text class="small" x="300" y="614">Terraform plan or CloudFormation</text>
+
+  <rect class="zone" x="580" y="150" width="510" height="780"/>
+  <text class="zoneLabel" x="610" y="190">SECURE CONNECTION AND COLLECTION</text>
+  <rect class="nodeGreen" x="640" y="245" width="390" height="120"/>
+  <text class="label" x="835" y="290">Role-only onboarding</text>
+  <text class="small" x="835" y="320">customer-owned IAM role + ExternalId</text>
+  <text class="tiny" x="835" y="344">no root credentials or stored access keys</text>
+  <rect class="node" x="640" y="465" width="390" height="120"/>
+  <text class="label" x="835" y="510">AWS configuration collectors</text>
+  <text class="small" x="835" y="540">read-only AWS APIs</text>
+  <text class="tiny" x="835" y="564">account, region, source and freshness context</text>
+  <rect class="node" x="640" y="690" width="390" height="120"/>
+  <text class="label" x="835" y="735">Resource normalizers</text>
+  <text class="small" x="835" y="765">unified CSPM asset and relationship schema</text>
+
+  <rect class="zone" x="1135" y="150" width="600" height="780"/>
+  <text class="zoneLabel" x="1165" y="190">CSPM EVIDENCE AND ANALYSIS PLANE</text>
+  <rect class="nodeDark" x="1200" y="245" width="470" height="125"/>
+  <text class="label" x="1435" y="290">Relational CSPM system of record</text>
+  <text class="small" x="1435" y="320">SQLite for development / PostgreSQL for production</text>
+  <text class="tiny" x="1435" y="344">assets, findings, issues, graph edges, scans, snapshots</text>
+  <rect class="node" x="1180" y="475" width="235" height="120"/>
+  <text class="label" x="1297" y="520">Policy engine</text>
+  <text class="small" x="1297" y="550">versioned checks</text>
+  <rect class="node" x="1450" y="475" width="235" height="120"/>
+  <text class="label" x="1567" y="520">AssetGraph</text>
+  <text class="small" x="1567" y="550">in-memory paths</text>
+  <rect class="nodeGold" x="1180" y="690" width="235" height="120"/>
+  <text class="label" x="1297" y="735">IaC scanner</text>
+  <text class="small" x="1297" y="765">stateless input</text>
+  <rect class="node" x="1450" y="690" width="235" height="120"/>
+  <text class="label" x="1567" y="735">Compliance mapper</text>
+  <text class="small" x="1567" y="765">snapshots and drift</text>
+  <rect class="nodeGrey" x="1290" y="850" width="290" height="58"/>
+  <text class="small" x="1435" y="886">Optional Neo4j projection</text>
+
+  <rect class="zone" x="260" y="970" width="1280" height="80"/>
+  <text class="zoneLabel" x="290" y="1005">CSPM EXPERIENCE</text>
+  <text class="label" x="975" y="1006">Dashboard · Inventory · Findings · Attack paths · Compliance · Guided remediation</text>
+  <text class="small" x="975" y="1032">All outputs preserve tenant scope, evidence, freshness, policy version and audit history</text>
+
+  <path class="arrow" d="M475 302 H640"/>
+  <text class="lineLabel" x="505" y="286">deploy role</text>
+  <path class="arrow" d="M835 365 V465"/>
+  <path class="arrow" d="M835 585 V690"/>
+  <path class="arrow" d="M1030 750 H1200 V370"/>
+  <text class="lineLabel" x="1070" y="735">normalized evidence</text>
+  <path class="arrow" d="M1435 370 V425 H1297 V475"/>
+  <path class="arrow" d="M1435 370 V425 H1567 V475"/>
+  <path class="arrow" d="M1415 535 H1450"/>
+  <text class="lineLabel" x="1360" y="518">findings</text>
+  <path class="arrow" d="M1567 595 V650 H1450 V690"/>
+  <path class="arrow" d="M300 645 H1180 V750"/>
+  <text class="lineLabel" x="690" y="630">manual/API scan</text>
+  <path class="arrow" d="M1297 810 V920 H900 V970"/>
+  <path class="arrow" d="M1567 810 V920 H1050 V970"/>
+  <path class="arrow" d="M1435 370 V920 H1200 V970"/>
+  <path class="optional" d="M1435 370 V850"/>
+  <text class="lineLabel" x="1450" y="630">control evidence</text>
+</svg>

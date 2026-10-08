@@ -1,0 +1,50 @@
+name: IaC Security Scan (Checkov)
+
+# Shift-left IaC gate (gap analysis §4.8). Runs Checkov on every PR that touches
+# infrastructure code, blocks on HIGH/CRITICAL, and uploads SARIF to the repo's
+# Code Scanning tab so findings annotate the diff.
+
+on:
+  pull_request:
+    paths:
+      - '**/*.tf'
+      - '**/*.tf.json'
+      - '**/*.yaml'
+      - '**/*.yml'
+      - '**/*.template'
+      - 'infrastructure/**'
+      - '.github/workflows/iac-scan.yml'
+  push:
+    branches: [main, python-cspm]
+    paths:
+      - '**/*.tf'
+      - 'infrastructure/**'
+
+permissions:
+  contents: read
+  security-events: write   # required to upload the SARIF result
+
+jobs:
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform,cloudformation,kubernetes,dockerfile
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+          # Comment on LOW/MEDIUM but only FAIL the build on HIGH/CRITICAL.
+          soft_fail_on: LOW,MEDIUM
+          quiet: true
+          download_external_modules: false
+
+      - name: Upload SARIF to Code Scanning
+        if: always()   # publish findings even when the gate fails the job
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

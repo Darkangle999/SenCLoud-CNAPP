@@ -1,0 +1,18 @@
+[Unit]
+Description=CloudSentinel eBPF S3 collector (drains the S3 queue into the local API)
+After=network-online.target
+
+[Service]
+Type=simple
+# @PYTHON@ / @REPO@ are substituted at install time; the rest comes from the
+# env file so the unit is generic across hosts/buckets.
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=%h/.config/cloudsentinel/collector.env
+ExecStart=@PYTHON@ @REPO@/scripts/s3_ingest_daemon.py \
+  --bucket ${BUCKET} --prefix ${PREFIX} --region ${REGION} \
+  --api-url ${API_URL} --interval ${INTERVAL}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

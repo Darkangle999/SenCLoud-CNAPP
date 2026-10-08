@@ -1,0 +1,46 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: "odineyes-baseline"
+spec:
+  kprobes:
+    # Capture all process executions
+    - call: "sys_execve"
+      syscall: true
+      args:
+        - index: 0
+          type: "string"
+      selectors:
+        - matchActions:
+            - action: Post
+    
+    # Capture outbound TCP connections
+    - call: "tcp_connect"
+      syscall: false
+      args:
+        - index: 0
+          type: "sock"
+      selectors:
+        - matchActions:
+            - action: Post
+
+    # Capture sensitive file access
+    - call: "sys_openat"
+      syscall: true
+      args:
+        - index: 0
+          type: "int"
+        - index: 1
+          type: "string"
+        - index: 2
+          type: "int"
+      selectors:
+        - matchArgs:
+            - index: 1
+              operator: "Equal"
+              values:
+                - "/etc/shadow"
+                - "/etc/sudoers"
+                - "/root/.ssh/authorized_keys"
+          matchActions:
+            - action: Post

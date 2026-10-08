@@ -1,0 +1,1119 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R 24 0 R] /Count 10 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 6149 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (CloudSentinel CSPM - Code, Data, and Outcome Workflow) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (A code-guided walkthrough of how the application turns cloud API responses into an) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  operator-facing CSPM outcome.) Tj ET
+0.92 0.97 0.93 rg
+44 677.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 686.0 Tm (Scope: the current implementation, with AWS as the detailed example. Azure and GCP) Tj ET
+0.92 0.97 0.93 rg
+44 665.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 674.0 Tm (use the same collector -> normalizer -> persistence spine for the resources) Tj ET
+0.92 0.97 0.93 rg
+44 653.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 662.0 Tm (currently supported.) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 646.0 Tm (What a CISO or security analyst receives) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 627.0 Tm (- A tenant-isolated cloud inventory: active assets, raw evidence, normalized posture) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 614.0 Tm (  fields, tags, relationships, and history.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 598.0 Tm (- Prioritized posture findings, correlated attack paths, compliance snapshots,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 585.0 Tm (  vulnerability context, runtime signals, and DSPM classifications.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 569.0 Tm (- Honest partial-scan visibility: a denied, failed, or truncated cloud API scope is) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 556.0 Tm (  recorded as an error and does not make real assets disappear.) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 540.0 Tm (The high-level pipeline) Tj ET
+0.96 0.97 0.99 rg
+44 513.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 521.0 Tm (Operator / scheduled monitor) Tj ET
+0.96 0.97 0.99 rg
+44 503.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 511.0 Tm (  -> FastAPI scan endpoint) Tj ET
+0.96 0.97 0.99 rg
+44 493.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 501.0 Tm (  -> MultiAccountOrchestrator) Tj ET
+0.96 0.97 0.99 rg
+44 483.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 491.0 Tm (  -> AwsRawCollector \(parallel read-only API calls\)) Tj ET
+0.96 0.97 0.99 rg
+44 473.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 481.0 Tm (  -> InventoryService \(normalize + tracked scan job\)) Tj ET
+0.96 0.97 0.99 rg
+44 463.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 471.0 Tm (  -> AssetRepository \(upsert + asset events + safe retirement\)) Tj ET
+0.96 0.97 0.99 rg
+44 453.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 461.0 Tm (  -> rules -> findings -> attack-path issues -> compliance snapshot) Tj ET
+0.96 0.97 0.99 rg
+44 443.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 451.0 Tm (  -> frontend dashboard, inventory, graph, reports) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 434.0 Tm (Project elements and their actual role) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 415.0 Tm (- frontend/: CISO/analyst UI. It calls /api endpoints for dashboards, assets, findings,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 402.0 Tm (  issues, graph, compliance, and onboarding.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 386.0 Tm (- api/inventory_routes.py: HTTP boundary. Validates provider/account/region inputs,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 373.0 Tm (  starts scans, exposes paginated inventory and scan-job status, and gates privileged) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 360.0 Tm (  mutations.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 344.0 Tm (- inventory/orchestrator.py: Per-account coordinator. Builds an assumed-role session,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 331.0 Tm (  selects the provider collector, serializes same-account scans, then triggers) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 318.0 Tm (  rules/issues/compliance.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 302.0 Tm (- inventory/aws_raw_collector.py: Read-only AWS discovery. Discovers enabled regions,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 289.0 Tm (  creates SDK clients, calls selected list/describe APIs in parallel, enriches key) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 276.0 Tm (  resources, and records coverage/errors.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 260.0 Tm (- inventory/normalizers.py: Pure translators. They convert provider-specific) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 247.0 Tm (  dictionaries into one NormalizedAsset contract; they never call AWS.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 231.0 Tm (- inventory/service.py + repository.py: Creates durable scan jobs, isolates bad records,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 218.0 Tm (  upserts inventory, writes drift events, and safely retires assets only in fully) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 205.0 Tm (  collected scopes.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 189.0 Tm (- inventory/rules.py + issues.py: Evaluates posture checks and correlated attack paths) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 176.0 Tm (  against normalized assets; findings and issues have open/resolved/reopened lifecycles.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 160.0 Tm (- db/models.py + db/base.py: SQLAlchemy schema and engine management. SQLite for) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 147.0 Tm (  local/test, PostgreSQL for production; tenant-scoped asset identity and query indexes.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 131.0 Tm (- inventory/monitor.py: Scheduled end-to-end cycle, optional DSPM scan, and alert-delta) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 118.0 Tm (  processing.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 1 of 10) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 7198 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (Project-wide architecture: the whole application) Tj ET
+0.95 0.98 0.95 rg 0.11 0.27 0.45 RG 0.7 w 48.0 672.0 154.0 31.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 55.0 691.0 Tm (CISO / security analyst) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 55.0 680.0 Tm (browser user) Tj ET
+1 0.98 0.93 rg 0.11 0.27 0.45 RG 0.7 w 229.0 672.0 154.0 31.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 236.0 691.0 Tm (Scheduled monitor) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 236.0 680.0 Tm (recurring inventory) Tj ET
+1 0.98 0.93 rg 0.11 0.27 0.45 RG 0.7 w 410.0 672.0 154.0 31.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 417.0 691.0 Tm (CI/CD or IaC user) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 417.0 680.0 Tm (pre-deploy scan) Tj ET
+0.94 0.97 1 rg 0.11 0.27 0.45 RG 0.7 w 126.0 615.0 360.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 637.0 Tm (React frontend) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 623.0 Tm (dashboard | inventory | findings | graph | compliance) Tj ET
+0.19 0.34 0.49 RG 0.8 w 125.0 672.0 m 235.0 649.0 l S
+235.0 649.0 m 230.0 652.5 l 230.0 645.5 l h f
+0.94 0.97 1 rg 0.11 0.27 0.45 RG 0.7 w 126.0 561.0 360.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 583.0 Tm (FastAPI API + operator gate) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 569.0 Tm (server.py | inventory_routes.py | admin token for mutations) Tj ET
+0.19 0.34 0.49 RG 0.8 w 306 672.0 m 105 672.0 l 105 578.0 l 126 578.0 l S
+0.19 0.34 0.49 rg 126 578.0 m 121 581.5 l 121 574.5 l h f
+0.19 0.34 0.49 RG 0.8 w 487 672.0 m 507 672.0 l 507 578.0 l 486 578.0 l S
+0.19 0.34 0.49 rg 486 578.0 m 491 581.5 l 491 574.5 l h f
+0.19 0.34 0.49 RG 0.8 w 306.0 615.0 m 306.0 595.0 l S
+306.0 595.0 m 302.5 600.0 l 309.5 600.0 l h f
+0.94 0.96 1 rg 0.11 0.27 0.45 RG 0.7 w 126.0 506.0 360.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 528.0 Tm (MultiAccountOrchestrator) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 514.0 Tm (per-account guard | session creation | scan coordination) Tj ET
+0.19 0.34 0.49 RG 0.8 w 306.0 561.0 m 306.0 540.0 l S
+306.0 540.0 m 302.5 545.0 l 309.5 545.0 l h f
+0.95 0.98 1 rg 0.11 0.27 0.45 RG 0.7 w 48.0 446.0 154.0 35.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 55.0 469.0 Tm (AWS collector) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 55.0 454.0 Tm (STS + regions + SDK) Tj ET
+0.95 0.98 1 rg 0.11 0.27 0.45 RG 0.7 w 229.0 446.0 154.0 35.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 236.0 469.0 Tm (Azure collector) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 236.0 454.0 Tm (current resources) Tj ET
+0.95 0.98 1 rg 0.11 0.27 0.45 RG 0.7 w 410.0 446.0 154.0 35.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 417.0 469.0 Tm (GCP collector) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 417.0 454.0 Tm (current resources) Tj ET
+0.19 0.34 0.49 RG 0.8 w 220.0 506.0 m 125.0 481.0 l S
+125.0 481.0 m 120.0 484.5 l 120.0 477.5 l h f
+0.19 0.34 0.49 RG 0.8 w 306.0 506.0 m 306.0 481.0 l S
+306.0 481.0 m 302.5 486.0 l 309.5 486.0 l h f
+0.19 0.34 0.49 RG 0.8 w 392.0 506.0 m 487.0 481.0 l S
+487.0 481.0 m 482.0 484.5 l 482.0 477.5 l h f
+0.94 0.97 1 rg 0.11 0.27 0.45 RG 0.7 w 126.0 390.0 360.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 412.0 Tm (Raw tuples -> coverage contract -> provider normalizers) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 398.0 Tm (resource evidence | authoritative scopes | CollectionError | NormalizedAsset) Tj ET
+0.19 0.34 0.49 RG 0.8 w 125.0 446.0 m 245.0 424.0 l S
+245.0 424.0 m 240.0 427.5 l 240.0 420.5 l h f
+0.19 0.34 0.49 RG 0.8 w 306.0 446.0 m 306.0 424.0 l S
+306.0 424.0 m 302.5 429.0 l 309.5 429.0 l h f
+0.19 0.34 0.49 RG 0.8 w 487.0 446.0 m 367.0 424.0 l S
+367.0 424.0 m 362.0 427.5 l 362.0 420.5 l h f
+0.94 0.97 1 rg 0.11 0.27 0.45 RG 0.7 w 126.0 335.0 360.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 357.0 Tm (InventoryService + AssetRepository) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 343.0 Tm (scan jobs/errors | upsert | events | scoped retirement) Tj ET
+0.19 0.34 0.49 RG 0.8 w 306.0 390.0 m 306.0 369.0 l S
+306.0 369.0 m 302.5 374.0 l 309.5 374.0 l h f
+0.95 0.96 0.99 rg 0.11 0.27 0.45 RG 0.7 w 126.0 280.0 360.0 35.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 303.0 Tm (SQLAlchemy database) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 288.0 Tm (accounts | assets/events | scan jobs/errors | findings | issues | compliance) Tj ET
+0.19 0.34 0.49 RG 0.8 w 306.0 335.0 m 306.0 315.0 l S
+306.0 315.0 m 302.5 320.0 l 309.5 320.0 l h f
+0.97 0.95 1 rg 0.11 0.27 0.45 RG 0.7 w 48.0 221.0 154.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 55.0 243.0 Tm (Rules engine) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 55.0 229.0 Tm (posture findings) Tj ET
+0.97 0.95 1 rg 0.11 0.27 0.45 RG 0.7 w 229.0 221.0 154.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 236.0 243.0 Tm (Issue engine) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 236.0 229.0 Tm (attack-path correlation) Tj ET
+0.97 0.95 1 rg 0.11 0.27 0.45 RG 0.7 w 410.0 221.0 154.0 34.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 417.0 243.0 Tm (CSPM enrichments) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 417.0 229.0 Tm (compliance | DSPM | runtime) Tj ET
+0.19 0.34 0.49 RG 0.8 w 245.0 280.0 m 125.0 255.0 l S
+125.0 255.0 m 120.0 258.5 l 120.0 251.5 l h f
+0.19 0.34 0.49 RG 0.8 w 306.0 280.0 m 306.0 255.0 l S
+306.0 255.0 m 302.5 260.0 l 309.5 260.0 l h f
+0.19 0.34 0.49 RG 0.8 w 367.0 280.0 m 487.0 255.0 l S
+487.0 255.0 m 482.0 258.5 l 482.0 251.5 l h f
+0.94 0.99 0.96 rg 0.11 0.27 0.45 RG 0.7 w 126.0 169.0 360.0 32.0 re B
+0.06 0.17 0.29 rg BT /F2 7.4 Tf 1 0 0 1 133.0 189.0 Tm (Operator outcome) Tj ET
+0.12 0.15 0.20 rg BT /F1 6.5 Tf 1 0 0 1 133.0 177.0 Tm (prioritized risk | evidence | history | scan health -> frontend) Tj ET
+0.19 0.34 0.49 RG 0.8 w 125.0 221.0 m 245.0 201.0 l S
+245.0 201.0 m 240.0 204.5 l 240.0 197.5 l h f
+0.19 0.34 0.49 RG 0.8 w 306.0 221.0 m 306.0 201.0 l S
+306.0 201.0 m 302.5 206.0 l 309.5 206.0 l h f
+0.19 0.34 0.49 RG 0.8 w 487.0 221.0 m 367.0 201.0 l S
+367.0 201.0 m 362.0 204.5 l 362.0 197.5 l h f
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 160.0 Tm (The vector diagram above is the rendered project model. The reusable Mermaid source lives) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 147.0 Tm (  in docs/CSPM_PROJECT_ARCHITECTURE.mmd, so it can be embedded in the repository README,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 134.0 Tm (  GitHub, or a design document.) Tj ET
+0.92 0.97 0.93 rg
+44 109.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 118.0 Tm (Read the arrows as data ownership: cloud responses become evidence, evidence becomes) Tj ET
+0.92 0.97 0.93 rg
+44 97.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 106.0 Tm (account-scoped inventory, inventory produces risk records, and only the query/API) Tj ET
+0.92 0.97 0.93 rg
+44 85.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 94.0 Tm (layer returns those records to the UI.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 2 of 10) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 7325 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (1. Scan initiation and account boundary) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (A user connects a cloud account with a provider, account identifier, and read-only role) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  ARN. The API persists a CloudAccount row; AWS onboarding provides an ExternalId to protect) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 689.0 Tm (  the cross-account AssumeRole trust relationship.) Tj ET
+0.96 0.97 0.99 rg
+44 665.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 673.0 Tm (POST /api/inventory/accounts/{account_id}/scan) Tj ET
+0.96 0.97 0.99 rg
+44 655.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 663.0 Tm ({) Tj ET
+0.96 0.97 0.99 rg
+44 645.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 653.0 Tm (  "region": "us-east-1") Tj ET
+0.96 0.97 0.99 rg
+44 635.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 643.0 Tm (}) Tj ET
+0.96 0.97 0.99 rg
+44 625.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 633.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 615.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 623.0 Tm (# endpoint calls) Tj ET
+0.96 0.97 0.99 rg
+44 605.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 613.0 Tm (result = _run_account_scan\(account_id, body.region\)) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 596.0 Tm (The same account cannot run two scans at the same time in one API process. This prevents) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 583.0 Tm (  one scan from interpreting another scan's still-in-flight resources as missing.) Tj ET
+0.96 0.97 0.99 rg
+44 559.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 567.0 Tm (with _account_scan_guard\(account\):) Tj ET
+0.96 0.97 0.99 rg
+44 549.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 557.0 Tm (    collector = self._make_collector\(account\)) Tj ET
+0.96 0.97 0.99 rg
+44 539.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 547.0 Tm (    resources = collector.collect\(\)) Tj ET
+0.96 0.97 0.99 rg
+44 529.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 537.0 Tm (    scan = self.service.persist_scan\() Tj ET
+0.96 0.97 0.99 rg
+44 519.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 527.0 Tm (        account.provider, account.identifier, resources,) Tj ET
+0.96 0.97 0.99 rg
+44 509.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 517.0 Tm (        authoritative_scopes=collector.authoritative_scopes,) Tj ET
+0.96 0.97 0.99 rg
+44 499.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 507.0 Tm (        collection_errors=collector.collection_errors,) Tj ET
+0.96 0.97 0.99 rg
+44 489.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 497.0 Tm (    \)) Tj ET
+0.92 0.97 0.93 rg
+44 471.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 480.0 Tm (Outcome: the scan is attached to exactly one CloudAccount. Data from another AWS) Tj ET
+0.92 0.97 0.93 rg
+44 459.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 468.0 Tm (account/subscription/project cannot overwrite it because assets are keyed by) Tj ET
+0.92 0.97 0.93 rg
+44 447.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 456.0 Tm (account_id + provider + resource_id.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 432.0 Tm (2. AWS authentication and regional discovery) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 405.0 Tm (For another AWS account, the orchestrator calls sts:AssumeRole using the stored role ARN) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 392.0 Tm (  and ExternalId. For the scanner's own AWS account, it can use the ambient SDK identity) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 379.0 Tm (  only when the caller account matches the target account.) Tj ET
+0.96 0.97 0.99 rg
+44 355.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 363.0 Tm (creds = sts.assume_role\() Tj ET
+0.96 0.97 0.99 rg
+44 345.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 353.0 Tm (    RoleArn=account.role_arn,) Tj ET
+0.96 0.97 0.99 rg
+44 335.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 343.0 Tm (    RoleSessionName="odineyes-inventory-scan",) Tj ET
+0.96 0.97 0.99 rg
+44 325.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 333.0 Tm (    DurationSeconds=3600,) Tj ET
+0.96 0.97 0.99 rg
+44 315.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 323.0 Tm (    ExternalId=account.external_id,) Tj ET
+0.96 0.97 0.99 rg
+44 305.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 313.0 Tm (\)["Credentials"]) Tj ET
+0.96 0.97 0.99 rg
+44 295.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 303.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 285.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 293.0 Tm (return boto3.Session\() Tj ET
+0.96 0.97 0.99 rg
+44 275.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 283.0 Tm (    aws_access_key_id=creds["AccessKeyId"],) Tj ET
+0.96 0.97 0.99 rg
+44 265.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 273.0 Tm (    aws_secret_access_key=creds["SecretAccessKey"],) Tj ET
+0.96 0.97 0.99 rg
+44 255.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 263.0 Tm (    aws_session_token=creds["SessionToken"],) Tj ET
+0.96 0.97 0.99 rg
+44 245.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 253.0 Tm (    region_name=self.region,) Tj ET
+0.96 0.97 0.99 rg
+44 235.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 243.0 Tm (\)) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 226.0 Tm (The collector discovers enabled regions with EC2 DescribeRegions. If discovery is) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 213.0 Tm (  unavailable it scans the configured home region instead of silently collecting nothing.) Tj ET
+0.96 0.97 0.99 rg
+44 189.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 197.0 Tm (resp = ec2.describe_regions\() Tj ET
+0.96 0.97 0.99 rg
+44 179.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 187.0 Tm (    Filters=[{"Name": "opt-in-status",) Tj ET
+0.96 0.97 0.99 rg
+44 169.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 177.0 Tm (              "Values": ["opt-in-not-required", "opted-in"]}]) Tj ET
+0.96 0.97 0.99 rg
+44 159.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 167.0 Tm (\)) Tj ET
+0.96 0.97 0.99 rg
+44 149.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 157.0 Tm (regions = sorted\(r["RegionName"] for r in resp["Regions"]\)) Tj ET
+0.96 0.97 0.99 rg
+44 139.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 147.0 Tm (return regions or [self.region]) Tj ET
+0.92 0.97 0.93 rg
+44 121.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 130.0 Tm (Outcome: rogue or shadow resources in enabled AWS regions are in scope by default.) Tj ET
+0.92 0.97 0.93 rg
+44 109.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 118.0 Tm (Global services such as S3 and IAM are collected once; regional services are) Tj ET
+0.92 0.97 0.93 rg
+44 97.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 106.0 Tm (collected per enabled region.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 3 of 10) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 6520 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (3. Raw AWS data fetching) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (The normal scan uses an explicit, posture-relevant registry. The collector creates service) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  clients with adaptive retries, then uses a bounded thread pool for network I/O.) Tj ET
+0.96 0.97 0.99 rg
+44 678.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 686.0 Tm (OPERATIONS = [) Tj ET
+0.96 0.97 0.99 rg
+44 668.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 676.0 Tm (  \("ec2", "describe_instances", {}, "aws.ec2.instance"\),) Tj ET
+0.96 0.97 0.99 rg
+44 658.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 666.0 Tm (  \("ec2", "describe_security_groups", {}, "aws.ec2.security_group"\),) Tj ET
+0.96 0.97 0.99 rg
+44 648.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 656.0 Tm (  \("s3", "list_buckets", {}, "aws.s3.bucket"\),) Tj ET
+0.96 0.97 0.99 rg
+44 638.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 646.0 Tm (  \("iam", "list_roles", {}, "aws.iam.role"\),) Tj ET
+0.96 0.97 0.99 rg
+44 628.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 636.0 Tm (  \("rds", "describe_db_instances", {}, "aws.rds.db_instance"\),) Tj ET
+0.96 0.97 0.99 rg
+44 618.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 626.0 Tm (  \("lambda", "list_functions", {}, "aws.lambda.function"\),) Tj ET
+0.96 0.97 0.99 rg
+44 608.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 616.0 Tm (  ...) Tj ET
+0.96 0.97 0.99 rg
+44 598.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 606.0 Tm (]) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 589.0 Tm (For each operation, the native SDK response is kept as a Python dict. The collector adds) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 576.0 Tm (  Region and performs best-effort enrichment for high-value types such as S3, IAM, Lambda,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 563.0 Tm (  Secrets Manager, CloudTrail, Config, and KMS.) Tj ET
+0.96 0.97 0.99 rg
+44 539.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 547.0 Tm (if client.can_paginate\(snake_op\):) Tj ET
+0.96 0.97 0.99 rg
+44 529.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 537.0 Tm (    pages = client.get_paginator\(snake_op\).paginate\() Tj ET
+0.96 0.97 0.99 rg
+44 519.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 527.0 Tm (        PaginationConfig={"MaxItems": 5000}, **kwargs) Tj ET
+0.96 0.97 0.99 rg
+44 509.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 517.0 Tm (    \)) Tj ET
+0.96 0.97 0.99 rg
+44 499.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 507.0 Tm (else:) Tj ET
+0.96 0.97 0.99 rg
+44 489.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 497.0 Tm (    pages = [getattr\(client, snake_op\)\(**kwargs\)]) Tj ET
+0.96 0.97 0.99 rg
+44 479.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 487.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 469.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 477.0 Tm (for item in extracted_items:) Tj ET
+0.96 0.97 0.99 rg
+44 459.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 467.0 Tm (    item["Region"] = region) Tj ET
+0.96 0.97 0.99 rg
+44 449.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 457.0 Tm (    out.append\(\(source_type, item\)\)) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 440.0 Tm (Example: raw S3 resource after collection and enrichment) Tj ET
+0.96 0.97 0.99 rg
+44 413.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 421.0 Tm (\("aws.s3.bucket", {) Tj ET
+0.96 0.97 0.99 rg
+44 403.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 411.0 Tm (  "Name": "customer-exports",) Tj ET
+0.96 0.97 0.99 rg
+44 393.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 401.0 Tm (  "CreationDate": "2026-07-19T09:12:00Z",) Tj ET
+0.96 0.97 0.99 rg
+44 383.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 391.0 Tm (  "Region": "eu-west-1",) Tj ET
+0.96 0.97 0.99 rg
+44 373.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 381.0 Tm (  "PolicyStatus": {"IsPublic": true},) Tj ET
+0.96 0.97 0.99 rg
+44 363.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 371.0 Tm (  "PublicAccessBlock": {},) Tj ET
+0.96 0.97 0.99 rg
+44 353.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 361.0 Tm (  "Encryption": {"enabled": true, "algorithm": "AES256"},) Tj ET
+0.96 0.97 0.99 rg
+44 343.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 351.0 Tm (  "Versioning": "Enabled",) Tj ET
+0.96 0.97 0.99 rg
+44 333.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 341.0 Tm (  "Tags": {"env": "prod", "owner": "data"}) Tj ET
+0.96 0.97 0.99 rg
+44 323.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 331.0 Tm (}\)) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 314.0 Tm (Example: raw EC2 instance) Tj ET
+0.96 0.97 0.99 rg
+44 287.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 295.0 Tm (\("aws.ec2.instance", {) Tj ET
+0.96 0.97 0.99 rg
+44 277.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 285.0 Tm (  "InstanceId": "i-0ab123",) Tj ET
+0.96 0.97 0.99 rg
+44 267.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 275.0 Tm (  "Region": "us-east-1",) Tj ET
+0.96 0.97 0.99 rg
+44 257.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 265.0 Tm (  "PublicIpAddress": "198.51.100.20",) Tj ET
+0.96 0.97 0.99 rg
+44 247.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 255.0 Tm (  "VpcId": "vpc-01", "SubnetId": "subnet-01",) Tj ET
+0.96 0.97 0.99 rg
+44 237.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 245.0 Tm (  "SecurityGroups": [{"GroupId": "sg-01"}],) Tj ET
+0.96 0.97 0.99 rg
+44 227.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 235.0 Tm (  "State": {"Name": "running"}) Tj ET
+0.96 0.97 0.99 rg
+44 217.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 225.0 Tm (}\)) Tj ET
+0.92 0.97 0.93 rg
+44 199.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 208.0 Tm (Outcome: raw evidence is preserved. Later normalizers and rules work from a stable) Tj ET
+0.92 0.97 0.93 rg
+44 187.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 196.0 Tm (collected record, while API-specific details remain available for investigation.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 4 of 10) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 15 0 R >>
+endobj
+15 0 obj
+<< /Length 7837 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (4. Collection completeness and error handling) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (A CSPM must not treat an AccessDenied, timeout, client construction failure, or 5,000-item) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  safety cap as an empty cloud response. The collector records a CollectionError and only) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 689.0 Tm (  marks successfully completed type/region scopes as authoritative.) Tj ET
+0.96 0.97 0.99 rg
+44 665.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 673.0 Tm (resources, complete = future.result\(\)) Tj ET
+0.96 0.97 0.99 rg
+44 655.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 663.0 Tm (out.extend\(resources\)) Tj ET
+0.96 0.97 0.99 rg
+44 645.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 653.0 Tm (if complete:) Tj ET
+0.96 0.97 0.99 rg
+44 635.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 643.0 Tm (    authoritative_scopes.add\(\(source_type, scope_region\)\)) Tj ET
+0.96 0.97 0.99 rg
+44 625.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 633.0 Tm (else:) Tj ET
+0.96 0.97 0.99 rg
+44 615.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 623.0 Tm (    collection_errors.append\(CollectionError\() Tj ET
+0.96 0.97 0.99 rg
+44 605.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 613.0 Tm (        source_type=source_type,) Tj ET
+0.96 0.97 0.99 rg
+44 595.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 603.0 Tm (        operation=f"{service}.{operation}",) Tj ET
+0.96 0.97 0.99 rg
+44 585.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 593.0 Tm (        region=scope_region,) Tj ET
+0.96 0.97 0.99 rg
+44 575.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 583.0 Tm (        message="result exceeded the 5000-item safety limit",) Tj ET
+0.96 0.97 0.99 rg
+44 565.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 573.0 Tm (    \)\)) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 556.0 Tm (For S3, a global successful list is authoritative for all bucket regions. For EC2, a) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 543.0 Tm (  successful DescribeInstances in eu-west-1 is authoritative only for EC2 instance assets in) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 530.0 Tm (  eu-west-1.) Tj ET
+0.92 0.97 0.93 rg
+44 505.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 514.0 Tm (Outcome: if an account lacks permission to list RDS in one region, existing RDS) Tj ET
+0.92 0.97 0.93 rg
+44 493.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 502.0 Tm (inventory there stays active and existing findings remain honest. The scan is marked) Tj ET
+0.92 0.97 0.93 rg
+44 481.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 490.0 Tm (partial with a stored scan error rather than silently resolving risk.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 466.0 Tm (5. Normalization: raw provider data -> common asset contract) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 439.0 Tm (Normalizers are pure functions selected by source type. They extract the common posture) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 426.0 Tm (  fields that rules can query across clouds: identity, region, tags, public exposure,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 413.0 Tm (  encryption, properties, and relationships.) Tj ET
+0.96 0.97 0.99 rg
+44 389.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 397.0 Tm (def normalize_s3_bucket\(raw, account_identifier\):) Tj ET
+0.96 0.97 0.99 rg
+44 379.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 387.0 Tm (    name = raw.get\("Name"\)) Tj ET
+0.96 0.97 0.99 rg
+44 369.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 377.0 Tm (    region = raw.get\("Region"\) or "global") Tj ET
+0.96 0.97 0.99 rg
+44 359.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 367.0 Tm (    is_public = _bucket_is_public\(raw\)) Tj ET
+0.96 0.97 0.99 rg
+44 349.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 357.0 Tm (    return NormalizedAsset\() Tj ET
+0.96 0.97 0.99 rg
+44 339.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 347.0 Tm (        resource_id=f"arn:aws:s3:::{name}",) Tj ET
+0.96 0.97 0.99 rg
+44 329.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 337.0 Tm (        cloud_provider="aws",) Tj ET
+0.96 0.97 0.99 rg
+44 319.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 327.0 Tm (        account_identifier=account_identifier,) Tj ET
+0.96 0.97 0.99 rg
+44 309.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 317.0 Tm (        asset_type="aws.s3.bucket",) Tj ET
+0.96 0.97 0.99 rg
+44 299.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 307.0 Tm (        region=region,) Tj ET
+0.96 0.97 0.99 rg
+44 289.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 297.0 Tm (        is_public=is_public,) Tj ET
+0.96 0.97 0.99 rg
+44 279.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 287.0 Tm (        encryption_enabled=bool\(raw.get\("Encryption", {}\).get\("enabled"\)\),) Tj ET
+0.96 0.97 0.99 rg
+44 269.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 277.0 Tm (        network_exposure="public" if is_public else "private",) Tj ET
+0.96 0.97 0.99 rg
+44 259.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 267.0 Tm (        raw=raw,) Tj ET
+0.96 0.97 0.99 rg
+44 249.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 257.0 Tm (    \)) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 240.0 Tm (Normalized S3 result) Tj ET
+0.96 0.97 0.99 rg
+44 213.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 221.0 Tm ({) Tj ET
+0.96 0.97 0.99 rg
+44 203.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 211.0 Tm (  "resource_id": "arn:aws:s3:::customer-exports",) Tj ET
+0.96 0.97 0.99 rg
+44 193.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 201.0 Tm (  "cloud_provider": "aws",) Tj ET
+0.96 0.97 0.99 rg
+44 183.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 191.0 Tm (  "account_identifier": "123456789012",) Tj ET
+0.96 0.97 0.99 rg
+44 173.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 181.0 Tm (  "asset_type": "aws.s3.bucket",) Tj ET
+0.96 0.97 0.99 rg
+44 163.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 171.0 Tm (  "region": "eu-west-1",) Tj ET
+0.96 0.97 0.99 rg
+44 153.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 161.0 Tm (  "tags": {"env": "prod", "owner": "data"},) Tj ET
+0.96 0.97 0.99 rg
+44 143.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 151.0 Tm (  "is_public": true,) Tj ET
+0.96 0.97 0.99 rg
+44 133.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 141.0 Tm (  "encryption_enabled": true,) Tj ET
+0.96 0.97 0.99 rg
+44 123.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 131.0 Tm (  "network_exposure": "public",) Tj ET
+0.96 0.97 0.99 rg
+44 113.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 121.0 Tm (  "relationships": [{"type": "BELONGS_TO", "target_id": "123456789012"}]) Tj ET
+0.96 0.97 0.99 rg
+44 103.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 111.0 Tm (}) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 94.0 Tm (EC2 normalization builds an account-and-region-qualified ARN, derives public/vpc exposure) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 81.0 Tm (  from the public IP, and creates relationships to security groups and instance profiles.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 68.0 Tm (  Security-group normalization derives world-open ports from ingress rules.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 5 of 10) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 17 0 R >>
+endobj
+17 0 obj
+<< /Length 5748 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.92 0.97 0.93 rg
+44 733.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 742.0 Tm (Outcome: rules do not need to understand every AWS response shape. They evaluate a) Tj ET
+0.92 0.97 0.93 rg
+44 721.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 730.0 Tm (unified representation and can work across AWS, Azure, and GCP as normalizers are) Tj ET
+0.92 0.97 0.93 rg
+44 709.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 718.0 Tm (added.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 694.0 Tm (6. Scan job, persistence, and asset lifecycle) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 667.0 Tm (InventoryService opens and starts a ScanJob before it persists the work. Each resource is) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 654.0 Tm (  normalized independently; a malformed record creates a ScanError but does not abort the) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 641.0 Tm (  entire scan.) Tj ET
+0.96 0.97 0.99 rg
+44 617.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 625.0 Tm (job = ScanJobRepository.create\(session, account, scan_type\)) Tj ET
+0.96 0.97 0.99 rg
+44 607.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 615.0 Tm (ScanJobRepository.start\(job\)) Tj ET
+0.96 0.97 0.99 rg
+44 597.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 605.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 587.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 595.0 Tm (for source_type, raw in resources:) Tj ET
+0.96 0.97 0.99 rg
+44 577.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 585.0 Tm (    fn = get_normalizer\(source_type\)) Tj ET
+0.96 0.97 0.99 rg
+44 567.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 575.0 Tm (    try:) Tj ET
+0.96 0.97 0.99 rg
+44 557.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 565.0 Tm (        normalized_asset = fn\(raw, account_identifier\)) Tj ET
+0.96 0.97 0.99 rg
+44 547.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 555.0 Tm (        normalized.append\(normalized_asset\)) Tj ET
+0.96 0.97 0.99 rg
+44 537.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 545.0 Tm (    except Exception as exc:) Tj ET
+0.96 0.97 0.99 rg
+44 527.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 535.0 Tm (        ScanJobRepository.add_error\(session, job, str\(exc\),) Tj ET
+0.96 0.97 0.99 rg
+44 517.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 525.0 Tm (                                    resource_type=source_type\)) Tj ET
+0.96 0.97 0.99 rg
+44 507.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 515.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 497.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 505.0 Tm (stats = AssetRepository.upsert_assets\() Tj ET
+0.96 0.97 0.99 rg
+44 487.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 495.0 Tm (    session, account, job, normalized,) Tj ET
+0.96 0.97 0.99 rg
+44 477.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 485.0 Tm (    authoritative_scopes=effective_scopes,) Tj ET
+0.96 0.97 0.99 rg
+44 467.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 475.0 Tm (\)) Tj ET
+0.96 0.97 0.99 rg
+44 457.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 465.0 Tm (ScanJobRepository.complete\(job, stats\)) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 448.0 Tm (Database records created or updated) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 429.0 Tm (- cloud_accounts: provider/account identity, role ARN, ExternalId, active status.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 413.0 Tm (- scan_jobs and scan_errors: queued/running/completed/failed lifecycle, counts, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 400.0 Tm (  individual errors.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 384.0 Tm (- assets: raw record, normalized posture projection, tags/properties/relationships,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 371.0 Tm (  active state, timestamps, risk score.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 355.0 Tm (- asset_events: created, configuration change, reactivated, or deleted events for) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 342.0 Tm (  audit/drift history.) Tj ET
+0.96 0.97 0.99 rg
+44 318.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 326.0 Tm (UNIQUE \(account_id, cloud_provider, resource_id\)) Tj ET
+0.96 0.97 0.99 rg
+44 308.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 316.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 298.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 306.0 Tm (# Safe retirement rule) Tj ET
+0.96 0.97 0.99 rg
+44 288.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 296.0 Tm (# full import: retire unseen assets) Tj ET
+0.96 0.97 0.99 rg
+44 278.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 286.0 Tm (# live collection: retire only assets whose \(asset_type, region\)) Tj ET
+0.96 0.97 0.99 rg
+44 268.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 276.0 Tm (#               is in authoritative_scopes and was not seen) Tj ET
+0.92 0.97 0.93 rg
+44 250.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 259.0 Tm (Outcome: the current inventory is accurate without destroying history. A) Tj ET
+0.92 0.97 0.93 rg
+44 238.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 247.0 Tm (disappearing resource becomes inactive; it can be reactivated on a later successful) Tj ET
+0.92 0.97 0.93 rg
+44 226.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 235.0 Tm (scan, and its prior evidence remains auditable.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 6 of 10) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 19 0 R >>
+endobj
+19 0 obj
+<< /Length 5616 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (6a. Data contracts, database queries, and tenant isolation) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (The system deliberately separates provider evidence from the projected fields the UI and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  rules query. This lets the product add a new cloud type without changing every downstream) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 689.0 Tm (  screen or rule.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 673.0 Tm (- Raw tuple: \(source_type, raw_dict\) exactly as collected from a provider, plus region) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 660.0 Tm (  and selected enrichment.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 644.0 Tm (- NormalizedAsset: common resource_id, provider, account identifier, type, region, tags,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 631.0 Tm (  posture booleans, raw evidence, properties, and relationships.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 615.0 Tm (- ScanJob / ScanError: durable status, counts, timestamps, partial/failure context, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 602.0 Tm (  a per-operation diagnostic record.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 586.0 Tm (- Asset / AssetEvent: the active inventory row plus a historical event when a resource) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 573.0 Tm (  is created, changed, reactivated, or retired.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 557.0 Tm (- Finding / Issue / ComplianceSnapshot: posture result, correlated risk path, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 544.0 Tm (  framework score/control history tied back to the account and resource.) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 528.0 Tm (How inventory queries stay scoped and fast) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 509.0 Tm (All inventory reads start from the connected CloudAccount and filter the requested) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 496.0 Tm (  provider/account scope before optional asset-type, region, active-state, tag, or risk) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 483.0 Tm (  filters. The database has account/provider/resource identity and common query indexes;) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 470.0 Tm (  PostgreSQL is the intended production backend.) Tj ET
+0.96 0.97 0.99 rg
+44 446.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 454.0 Tm (# Conceptual asset read used by the API) Tj ET
+0.96 0.97 0.99 rg
+44 436.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 444.0 Tm (query = select\(Asset\).where\() Tj ET
+0.96 0.97 0.99 rg
+44 426.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 434.0 Tm (    Asset.account_id == account.id,) Tj ET
+0.96 0.97 0.99 rg
+44 416.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 424.0 Tm (    Asset.cloud_provider == provider,) Tj ET
+0.96 0.97 0.99 rg
+44 406.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 414.0 Tm (    Asset.is_active.is_\(True\),) Tj ET
+0.96 0.97 0.99 rg
+44 396.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 404.0 Tm (\)) Tj ET
+0.96 0.97 0.99 rg
+44 386.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 394.0 Tm (query = apply_region_type_tag_and_risk_filters\(query\)) Tj ET
+0.96 0.97 0.99 rg
+44 376.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 384.0 Tm (rows = session.execute\(query.order_by\(Asset.risk_score.desc\(\)\)\)) Tj ET
+0.92 0.97 0.93 rg
+44 358.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 367.0 Tm (Security property: a resource ID is not globally unique. The durable unique key) Tj ET
+0.92 0.97 0.93 rg
+44 346.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 355.0 Tm (includes account_id and provider, which prevents the same AWS ARN-like string in a) Tj ET
+0.92 0.97 0.93 rg
+44 334.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 343.0 Tm (different tenant/account from overwriting another customer's evidence.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 319.0 Tm (7. Findings, attack paths, and compliance) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 292.0 Tm (After persistence, the orchestrator evaluates the active assets. The rules engine) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 279.0 Tm (  creates/updates posture findings; the issue engine correlates multiple conditions into) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 266.0 Tm (  attack paths; compliance maps open findings to frameworks.) Tj ET
+0.96 0.97 0.99 rg
+44 242.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 250.0 Tm (findings = service.evaluate_findings\(provider, account\)) Tj ET
+0.96 0.97 0.99 rg
+44 232.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 240.0 Tm (issues = service.evaluate_issues\(provider, account\)) Tj ET
+0.96 0.97 0.99 rg
+44 222.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 230.0 Tm (service.snapshot_compliance\() Tj ET
+0.96 0.97 0.99 rg
+44 212.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 220.0 Tm (    provider, account, ["CIS", "SOC2", "NIST", "PCI-DSS"]) Tj ET
+0.96 0.97 0.99 rg
+44 202.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 210.0 Tm (\)) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 193.0 Tm (Representative finding output) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 7 of 10) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 21 0 R >>
+endobj
+21 0 obj
+<< /Length 5063 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.96 0.97 0.99 rg
+44 734.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 742.0 Tm ({) Tj ET
+0.96 0.97 0.99 rg
+44 724.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 732.0 Tm (  "rule_id": "PUBLIC_S3_BUCKET",) Tj ET
+0.96 0.97 0.99 rg
+44 714.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 722.0 Tm (  "severity": "high",) Tj ET
+0.96 0.97 0.99 rg
+44 704.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 712.0 Tm (  "status": "open",) Tj ET
+0.96 0.97 0.99 rg
+44 694.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 702.0 Tm (  "resource_id": "arn:aws:s3:::customer-exports",) Tj ET
+0.96 0.97 0.99 rg
+44 684.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 692.0 Tm (  "why": "Bucket policy or ACL permits public access",) Tj ET
+0.96 0.97 0.99 rg
+44 674.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 682.0 Tm (  "remediation": "Enable S3 Block Public Access and remove public grants",) Tj ET
+0.96 0.97 0.99 rg
+44 664.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 672.0 Tm (  "risk_score": 4.5,) Tj ET
+0.96 0.97 0.99 rg
+44 654.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 662.0 Tm (  "exposure": "public") Tj ET
+0.96 0.97 0.99 rg
+44 644.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 652.0 Tm (}) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 635.0 Tm (Representative correlated issue) Tj ET
+0.96 0.97 0.99 rg
+44 608.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 616.0 Tm ({) Tj ET
+0.96 0.97 0.99 rg
+44 598.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 606.0 Tm (  "issue_type": "PUBLIC_COMPUTE_TO_ADMIN",) Tj ET
+0.96 0.97 0.99 rg
+44 588.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 596.0 Tm (  "severity": "critical",) Tj ET
+0.96 0.97 0.99 rg
+44 578.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 586.0 Tm (  "risk_score": 92.0,) Tj ET
+0.96 0.97 0.99 rg
+44 568.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 576.0 Tm (  "resource_id": "arn:aws:ec2:...:instance/i-0ab123",) Tj ET
+0.96 0.97 0.99 rg
+44 558.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 566.0 Tm (  "path": ["internet", "i-0ab123", "sg-01", "admin-role"],) Tj ET
+0.96 0.97 0.99 rg
+44 548.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 556.0 Tm (  "status": "open") Tj ET
+0.96 0.97 0.99 rg
+44 538.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 546.0 Tm (}) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 529.0 Tm (A finding is one misconfiguration. An issue is a toxic combination or reachable route.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 516.0 Tm (  Both have lifecycle reconciliation: still present = refresh; fixed = resolved; returned =) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 503.0 Tm (  reopened.) Tj ET
+0.92 0.97 0.93 rg
+44 478.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 487.0 Tm (Outcome: a CISO sees a prioritized risk story rather than an unranked list of cloud) Tj ET
+0.92 0.97 0.93 rg
+44 466.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 475.0 Tm (settings. Compliance snapshots retain score and control history for audit and drift) Tj ET
+0.92 0.97 0.93 rg
+44 454.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 463.0 Tm (analysis.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 439.0 Tm (8. Other CSPM product paths) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 412.0 Tm (- CWPP / vulnerabilities: EC2 package inventory through SSM and container image scanning) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 399.0 Tm (  through Trivy/ECR are persisted as vulnerabilities, enriched by the NVD catalog, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 386.0 Tm (  prioritized with KEV/EPSS maturity.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 370.0 Tm (- DSPM: Data-store classification adds sensitivity labels and taxonomies. Finding risk) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 357.0 Tm (  can be elevated where public exposure and sensitive data overlap.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 341.0 Tm (- Runtime: The internal runtime-events endpoints persist enriched eBPF/sensor events.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 328.0 Tm (  These can mark attack-path issues as actively exploited.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 312.0 Tm (- IaC: Terraform-plan and CloudFormation content can be scanned before deployment. This) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 299.0 Tm (  is a stateless pre-deploy path rather than cloud-inventory persistence.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 283.0 Tm (- Graph: Normalized relationships become graph edges and a security graph used to) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 270.0 Tm (  enumerate reachable attack paths across an account or fleet.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 8 of 10) Tj ET
+endstream
+endobj
+22 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 23 0 R >>
+endobj
+23 0 obj
+<< /Length 6416 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (9. API outcomes for the UI) Tj ET
+0.96 0.97 0.99 rg
+44 707.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 715.0 Tm (POST /api/inventory/accounts                 -> connected account row) Tj ET
+0.96 0.97 0.99 rg
+44 697.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 705.0 Tm (POST /api/inventory/accounts/{id}/verify     -> assume/read diagnostics) Tj ET
+0.96 0.97 0.99 rg
+44 687.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 695.0 Tm (POST /api/inventory/accounts/{id}/scan       -> one completed account scan) Tj ET
+0.96 0.97 0.99 rg
+44 677.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 685.0 Tm (POST /api/inventory/scan-all                 -> per-account fleet results) Tj ET
+0.96 0.97 0.99 rg
+44 667.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 675.0 Tm (GET  /api/inventory                          -> paginated assets and filters) Tj ET
+0.96 0.97 0.99 rg
+44 657.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 665.0 Tm (GET  /api/inventory/scan-jobs/{job_id}       -> scan lifecycle/counts/errors) Tj ET
+0.96 0.97 0.99 rg
+44 647.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 655.0 Tm (GET  /api/inventory/findings                 -> prioritized posture findings) Tj ET
+0.96 0.97 0.99 rg
+44 637.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 645.0 Tm (GET  /api/inventory/issues                   -> correlated attack-path issues) Tj ET
+0.96 0.97 0.99 rg
+44 627.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 635.0 Tm (GET  /api/inventory/graph                    -> security graph + paths) Tj ET
+0.96 0.97 0.99 rg
+44 617.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 625.0 Tm (GET  /api/inventory/compliance/*             -> snapshot/history/drift) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 608.0 Tm (When ODINEYES_ADMIN_TOKEN is configured, write/scan/evaluation endpoints require) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 595.0 Tm (  Authorization: Bearer <token>. Local development remains open if no token is configured.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 579.0 Tm (The frontend should present scan status, assets found/changed/deleted, errors, and the) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 566.0 Tm (  partial flag. A partial result is valuable security information: it tells the operator) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 553.0 Tm (  which cloud scope still needs permissions or a retry.) Tj ET
+0.06 0.25 0.43 rg BT /F2 13 Tf 1 0 0 1 48.0 537.0 Tm (What the UI should communicate at each state) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 518.0 Tm (- Connected but unscanned: show the provider, account identifier, role verification) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 505.0 Tm (  result, requested regions, and a clear Run scan action.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 489.0 Tm (- Queued/running: show job start time, account, scan type, live counts where available,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 476.0 Tm (  and prevent a duplicate same-account action.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 460.0 Tm (- Completed: lead with critical/open findings, changed assets, compliance movement, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 447.0 Tm (  a direct link to raw evidence and remediation.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 431.0 Tm (- Partial: keep last known assets and findings visible; list the failed API, region, and) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 418.0 Tm (  permission/remediation needed instead of showing a misleading zero.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 402.0 Tm (- Failed: distinguish an authentication/configuration failure from an internal) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 389.0 Tm (  processing error; retain the prior successful inventory as historical context.) Tj ET
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 365.0 Tm (10. One resource end-to-end: actual outcome) Tj ET
+0.96 0.97 0.99 rg
+44 330.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 338.0 Tm (1. AWS S3 ListBuckets finds customer-exports) Tj ET
+0.96 0.97 0.99 rg
+44 320.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 328.0 Tm (2. Enrichment finds Region=eu-west-1, public policy, encryption enabled) Tj ET
+0.96 0.97 0.99 rg
+44 310.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 318.0 Tm (3. Collector emits \("aws.s3.bucket", raw_dict\)) Tj ET
+0.96 0.97 0.99 rg
+44 300.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 308.0 Tm (4. normalize_s3_bucket emits a NormalizedAsset) Tj ET
+0.96 0.97 0.99 rg
+44 290.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 298.0 Tm (5. AssetRepository upserts assets row and writes created/config_change event) Tj ET
+0.96 0.97 0.99 rg
+44 280.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 288.0 Tm (6. Rule PUBLIC_S3_BUCKET opens or refreshes a high finding) Tj ET
+0.96 0.97 0.99 rg
+44 270.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 278.0 Tm (7. DSPM label, if present, increases risk for public + sensitive data) Tj ET
+0.96 0.97 0.99 rg
+44 260.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 268.0 Tm (8. Compliance mapper records affected CIS/SOC2/NIST/PCI controls) Tj ET
+0.96 0.97 0.99 rg
+44 250.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 258.0 Tm (9. UI shows the bucket in Inventory, Finding detail, Compliance, and Graph) Tj ET
+0.92 0.97 0.93 rg
+44 232.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 241.0 Tm (If the next successful S3 listing no longer contains the bucket, the asset is soft-) Tj ET
+0.92 0.97 0.93 rg
+44 220.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 229.0 Tm (deleted and the finding can resolve. If the S3 API was denied or truncated instead,) Tj ET
+0.92 0.97 0.93 rg
+44 208.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 217.0 Tm (neither event occurs: the prior asset and finding remain until evidence is) Tj ET
+0.92 0.97 0.93 rg
+44 196.0 524 13 re f
+0.16 0.28 0.18 rg BT /F2 9 Tf 1 0 0 1 56.0 205.0 Tm (trustworthy.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 9 of 10) Tj ET
+endstream
+endobj
+24 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 25 0 R >>
+endobj
+25 0 obj
+<< /Length 2224 >>
+stream
+0.13 0.16 0.23 rg
+0.5 w
+48 759 m 564 759 l S
+0.06 0.16 0.29 rg BT /F2 20 Tf 1 0 0 1 48.0 742.0 Tm (11. Scaling and Go boundary) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 715.0 Tm (The current AWS collector is primarily I/O-bound and already uses adaptive retry plus) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 702.0 Tm (  bounded threads. The next production step is a durable job queue and a database-backed) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 689.0 Tm (  distributed account lock, not a language rewrite.) Tj ET
+0.96 0.97 0.99 rg
+44 665.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 673.0 Tm (Recommended future boundary) Tj ET
+0.96 0.97 0.99 rg
+44 655.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 663.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 645.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 653.0 Tm (Go collector worker) Tj ET
+0.96 0.97 0.99 rg
+44 635.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 643.0 Tm (  -> versioned raw-resource batches + coverage/error report) Tj ET
+0.96 0.97 0.99 rg
+44 625.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 633.0 Tm (  -> existing Python normalization, rules, persistence API) Tj ET
+0.96 0.97 0.99 rg
+44 615.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 623.0 Tm () Tj ET
+0.96 0.97 0.99 rg
+44 605.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 613.0 Tm (Keep tenant identity, finding lifecycle, compliance semantics,) Tj ET
+0.96 0.97 0.99 rg
+44 595.5 524 11 re f
+0.14 0.16 0.20 rg BT /F3 8.0 Tf 1 0 0 1 56.0 603.0 Tm (and database ownership in one service until the event contract is stable.) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 586.0 Tm (Go becomes useful when measured fleet scale shows Python process overhead, connection) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 573.0 Tm (  reuse, streaming, or memory pressure dominating. It should optimize collection mechanics,) Tj ET
+0.12 0.13 0.16 rg BT /F1 9.2 Tf 1 0 0 1 48.0 560.0 Tm (  while the CSPM decision model remains consistent and testable.) Tj ET
+0.35 0.38 0.44 rg
+BT /F1 8 Tf 1 0 0 1 48 30 Tm (CloudSentinel CSPM workflow) Tj ET
+BT /F1 8 Tf 1 0 0 1 510 30 Tm (Page 10 of 10) Tj ET
+endstream
+endobj
+xref
+0 26
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000184 00000 n 
+0000000254 00000 n 
+0000000329 00000 n 
+0000000397 00000 n 
+0000000543 00000 n 
+0000006744 00000 n 
+0000006890 00000 n 
+0000014140 00000 n 
+0000014288 00000 n 
+0000021666 00000 n 
+0000021814 00000 n 
+0000028387 00000 n 
+0000028535 00000 n 
+0000036425 00000 n 
+0000036573 00000 n 
+0000042374 00000 n 
+0000042522 00000 n 
+0000048191 00000 n 
+0000048339 00000 n 
+0000053455 00000 n 
+0000053603 00000 n 
+0000060072 00000 n 
+0000060220 00000 n 
+trailer
+<< /Size 26 /Root 1 0 R >>
+startxref
+62497
+%%EOF

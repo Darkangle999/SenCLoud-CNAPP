@@ -1,0 +1,143 @@
+# Virtual environments
+.venv/
+.venv-linux/
+venv/
+env/
+ENV/
+.env
+.env.*
+*.pem
+*.key
+.aws/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# pytest
+.pytest_cache/
+.pytest-tmp-*/
+.coverage
+htmlcov/
+
+# Reports
+reports/
+*.html
+*.json
+!src/odineyes/core/cis_catalog_provenance.json
+.benchmarks/
+*.csv
+
+# …but keep the Vite entry (the blanket *.html above would hide it → blank page)
+!frontend/index.html
+
+# …but keep package manifests (the blanket *.json above would hide them)
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/tsconfig*.json
+!frontend/components.json
+
+# …and the frontend source (the Python `lib/` rule above also hid src/lib)
+!frontend/src/lib/
+!frontend/src/lib/**
+
+# Temporary files
+*.tmp
+.Makefile.swp
+
+# Local Neo4j runtime data
+/data/neo4j/
+
+# Terraform local state and providers
+*.tfstate
+*.tfstate.backup
+/infrastructure/.terraform/
+
+# Local environment helper files
+.agents/
+.cloudsentinelignore
+
+# TypeScript build info
+*.tsbuildinfo
+
+# JavaScript dependencies and local compiler output
+/node_modules/
+/frontend/tsc_check.txt
+
+# Codex/test scratch directories
+/.codex-pytest-*/
+
+# Local diagnostic helpers and captured command output
+/_check_crlf.py
+/_get_err.py
+/_probe_*.py
+/_probe_*.cjs
+/_verify_fix.py
+/build_fix.txt
+/get_err_out.txt
+/npmfix.txt
+/pkg_err.txt
+/pkg_out.txt
+/poll_deploy.txt
+/pptr_err.txt
+/pptr_out.txt
+/pusherr.txt
+/pushout.txt
+/uibuild.txt
+/zipchk.txt
+
+# Local sqlite inventory stores
+*.db
+*.db-shm
+*.db-wal
+
+# Local scratch tooling
+check_imports.py
+
+# Generated, account-specific deployment releases and Systems Manager helpers
+/deploy/artifacts/
+/.release/
+/infrastructure/.mumbai-user-data.sh
+
+# Legacy deployment examples with unsafe defaults; keep them local.
+/infrastructure/main.tf
+/create_tenant.py
+/scripts/seed_test_secrets.py
+/scripts/test_dspm_services.py
+
+# Go scanner build caches and release binaries
+/scanner-go/.cache/
+/scanner-go/bin/
+
+# Local release artifacts and scratch caches
+/releases/
+/.git-publish/
+/.cis-extract/
+/.gocache-*/
+/.release-stage-*/

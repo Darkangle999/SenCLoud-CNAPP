@@ -115,20 +115,10 @@ python simulate_wiz_attack_path.py \
   --neo4j-password $ODINEYES_NEO4J_PASSWORD
 ```
 
-### Against a local test environment (no AWS needed)
+### Local demo (no AWS needed)
 
-If you prefer testing completely locally without querying real cloud endpoints, you can utilize the synthetic test environments:
-
-```bash
-# 1. Seed test secrets (writes dummy AWS keys to /tmp/cs_test)
-python scripts/seed_test_secrets.py
-
-# 2. Run the scanner against the seeded test data
-python simulate_wiz_attack_path.py \
-  --scan-path /tmp/cs_test \
-  --neo4j-uri $ODINEYES_NEO4J_URI \
-  --neo4j-password $ODINEYES_NEO4J_PASSWORD
-```
+Run the frontend demo described above to explore synthetic assets, findings,
+attack paths, and compliance views without cloud access.
 
 ## Application Workflow
 

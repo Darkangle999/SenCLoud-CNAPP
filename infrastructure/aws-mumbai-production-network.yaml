@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Minimal isolated public network for the Odineyes Mumbai production host.
+  No NAT Gateway, VPC endpoints, load balancer, database, or SSH ingress.
+
+Parameters:
+  VpcCidr:
+    Type: String
+    Default: 10.212.0.0/16
+    AllowedPattern: '^10[.]212[.][0-9]{1,3}[.]0/(1[6-9]|2[0-8])$'
+    Description: Non-overlapping RFC1918 CIDR for the Odineyes Mumbai VPC.
+  PublicSubnetCidr:
+    Type: String
+    Default: 10.212.0.0/24
+    AllowedPattern: '^10[.]212[.][0-9]{1,3}[.]0/(1[6-9]|2[0-8])$'
+    Description: Public subnet CIDR for the single host.
+
+Resources:
+  OdineyesVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-vpc'
+        - Key: Application
+          Value: Odineyes
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-igw'
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref OdineyesVpc
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref OdineyesVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public'
+
+  DefaultInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref OdineyesVpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-public-a'
+
+  PublicRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet
+
+Outputs:
+  VpcId:
+    Description: Use as VpcId for aws-single-host.yaml in ap-south-1.
+    Value: !Ref OdineyesVpc
+  PublicSubnetId:
+    Description: Use as PublicSubnetId for aws-single-host.yaml in ap-south-1.
+    Value: !Ref PublicSubnet

@@ -1,0 +1,104 @@
+# Production compose — for local/VM deployment.
+# For AWS: use ECS Fargate + RDS + ALB (see docs/DEPLOY.md).
+# Never use this file on developer laptops — use docker-compose.yml instead.
+#
+# Required env vars (set in .env.prod or Secrets Manager):
+#   ODINEYES_DB_URL        postgresql+psycopg2://user:pass@host/db
+#   ODINEYES_CORS_ORIGINS  https://yourdomain.com
+#   AWS_REGION             us-east-1
+#   ODINEYES_AWS_ACCOUNT_ID
+#                          AWS account that owns the scanner workload
+#   ODINEYES_SCANNER_PRINCIPAL_ARN
+#                          Exact IAM role ARN trusted by customer roles
+#
+# AWS credentials: do NOT mount ~/.aws. Use instance/task IAM roles.
+# The api + daemon services need these IAM actions (attach to the role):
+#   ec2:Describe*, s3:List*, s3:GetBucket*, iam:List*, iam:Get*,
+#   rds:Describe*, sts:GetCallerIdentity, ec2:DescribeRegions
+
+x-api-env: &api-env
+  ODINEYES_DB_URL: ${ODINEYES_DB_URL}
+  ODINEYES_CORS_ORIGINS: ${ODINEYES_CORS_ORIGINS:-https://localhost}
+  ODINEYES_TRIVY_SHA256_FILE: /etc/odineyes/trivy.sha256
+  ODINEYES_STEAMPIPE_MOD_DIR: /opt/steampipe/aws-compliance
+  ODINEYES_TRIVY_SHA256: ${ODINEYES_TRIVY_SHA256:-}
+  ODINEYES_NVD_AUDIT: ${ODINEYES_NVD_AUDIT:-}
+  AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+  # Set these explicitly in production so onboarding does not depend on a
+  # successful STS lookup while generating the customer CloudFormation URL.
+  ODINEYES_AWS_ACCOUNT_ID: ${ODINEYES_AWS_ACCOUNT_ID:-}
+  ODINEYES_SCANNER_PRINCIPAL_ARN: ${ODINEYES_SCANNER_PRINCIPAL_ARN:-}
+  # Keep Python as the rollback-safe default. Promote shadow -> go only after
+  # account-level parity has been reviewed.
+  ODINEYES_AWS_SCANNER_BACKEND: ${ODINEYES_AWS_SCANNER_BACKEND:-python}
+  ODINEYES_AWS_SCANNER_ACCOUNT_ALLOWLIST: ${ODINEYES_AWS_SCANNER_ACCOUNT_ALLOWLIST:-}
+  # Required for one-click CloudFormation. The API task role must
+  # have the narrow S3 publisher policy documented in docs/ONE_CLICK_CLOUDFORMATION_ONBOARDING.md.
+  ODINEYES_ONBOARDING_TEMPLATE_BUCKET: ${ODINEYES_ONBOARDING_TEMPLATE_BUCKET:-}
+  ODINEYES_ONBOARDING_TEMPLATE_REGION: ${ODINEYES_ONBOARDING_TEMPLATE_REGION:-us-east-1}
+  PYTHONIOENCODING: utf-8
+
+services:
+  api:
+    image: ${ODINEYES_IMAGE:-odineyes:latest}
+    container_name: odineyes_api
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - "127.0.0.1:8000:8000"   # bind loopback only — nginx/ALB terminates TLS
+    environment:
+      <<: *api-env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/cs
+
+  daemon:
+    image: ${ODINEYES_IMAGE:-odineyes:latest}
+    container_name: odineyes_daemon
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      <<: *api-env
+      ODINEYES_API_URL: http://api:8000
+      ODINEYES_POLL_INTERVAL: ${ODINEYES_POLL_INTERVAL:-300}
+    command: ["python", "-m", "odineyes.inventory.monitor"]
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  frontend:
+    image: ${ODINEYES_FRONTEND_IMAGE:-odineyes-frontend:latest}
+    container_name: odineyes_frontend
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - "127.0.0.1:3000:80"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+
+networks:
+  internal:
+    driver: bridge

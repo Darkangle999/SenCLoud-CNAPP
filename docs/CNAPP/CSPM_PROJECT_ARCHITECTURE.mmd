@@ -1,0 +1,36 @@
+flowchart TB
+    CISO["CISO / Security Analyst"] --> UI["React frontend\nDashboard | Inventory | Findings | Graph | Compliance"]
+    CICD["CI/CD / IaC user"] --> API
+    Monitor["Scheduled inventory monitor"] --> Orchestrator
+
+    UI --> API["FastAPI API\nserver.py + inventory_routes.py"]
+    API --> Gate["Operator gate\nODINEYES_ADMIN_TOKEN for mutations"]
+    Gate --> Orchestrator["MultiAccountOrchestrator\nper-account scan guard"]
+    API --> Query["Read/query services\nassets, findings, issues, graph, compliance"]
+
+    Orchestrator --> STS["AWS STS AssumeRole\nExternalId + read-only role"]
+    STS --> AWS["AwsRawCollector\nregions, paginators, retries, bounded parallel I/O"]
+    Orchestrator --> Azure["Azure collector\ncurrent supported resources"]
+    Orchestrator --> GCP["GCP collector\ncurrent supported resources"]
+
+    AWS --> Raw["Raw resource tuples\n(type, provider response dict)"]
+    Azure --> Raw
+    GCP --> Raw
+    Raw --> Coverage["Coverage contract\nauthoritative scopes + CollectionError"]
+    Coverage --> Normalize["Provider normalizers\nNormalizedAsset"]
+    Normalize --> Service["InventoryService\nscan job + malformed-record isolation"]
+    Service --> Repo["AssetRepository\nupsert, events, scoped retirement"]
+    Repo --> DB[("SQLAlchemy database\naccounts | scan jobs/errors | assets/events\nfindings | issues | compliance snapshots")]
+
+    DB --> Rules["Rules engine\nposture findings lifecycle"]
+    DB --> Issues["Issue engine\nattack-path correlation"]
+    DB --> Compliance["Compliance snapshots\nCIS | SOC2 | NIST | PCI-DSS"]
+    DB --> Enrichment["DSPM | vulnerability | runtime | graph\noptional CSPM enrichment paths"]
+    Rules --> DB
+    Issues --> DB
+    Compliance --> DB
+    Enrichment --> DB
+
+    Query --> DB
+    DB --> Outcomes["Operator outcomes\nprioritized risk, evidence, history, scan health"]
+    Outcomes --> UI

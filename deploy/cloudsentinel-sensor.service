@@ -1,0 +1,22 @@
+[Unit]
+Description=CloudSentinel eBPF runtime sensor (execve tracepoint -> Threats)
+Documentation=https://github.com/cloudsentinel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# eBPF load (bpf() syscall) + perf buffer need these caps; running as root is simplest.
+User=root
+WorkingDirectory=/home/G3nt3lm3n/Documents/CloudSen
+Environment=PYTHONPATH=/home/G3nt3lm3n/Documents/CloudSen/src
+ExecStart=/home/G3nt3lm3n/Documents/CloudSen/.venv/bin/python -m cloudsentinel.sensor.ebpf_agent --api-url http://localhost:8000
+Restart=on-failure
+RestartSec=5
+# Sensor only makes outbound HTTP to the local API; tighten the rest.
+NoNewPrivileges=false
+ProtectHome=read-only
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

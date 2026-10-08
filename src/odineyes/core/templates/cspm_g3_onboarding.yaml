@@ -1,0 +1,1407 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  CSPM-G3 onboarding. Creates a cross-account read-only role assumed by the CSPM
+  platform via sts:AssumeRole with an ExternalId. Optionally creates a separate,
+  tightly-scoped role for agentless disk scanning.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: CSPM platform connection
+        Parameters:
+          - CSPMPlatformAccountId
+          - CSPMPlatformRoleName
+          - CSPMPlatformPrincipalArn
+          - ExternalId
+      - Label:
+          default: One-click onboarding (pre-filled from your link)
+        Parameters:
+          - OnboardingToken
+          - CallbackUrl
+      - Label:
+          default: Near-real-time security events (optional)
+        Parameters:
+          - RealtimeEventBusArn
+          - EnableRealtimeCloudTrail
+          - RealtimeTrailRetentionDays
+      - Label:
+          default: Role configuration
+        Parameters:
+          - RoleName
+          - MaxSessionDurationSeconds
+          - PermissionsBoundaryArn
+      - Label:
+          default: Agentless disk scanning (optional)
+        Parameters:
+          - EnableDiskScanning
+          - ScannerAccountId
+    ParameterLabels:
+      ExternalId:
+        default: External ID issued by the CSPM platform
+
+Parameters:
+  CSPMPlatformAccountId:
+    Type: String
+    AllowedPattern: "^[0-9]{12}$"
+    Description: AWS account ID that hosts the CSPM platform.
+
+  CSPMPlatformRoleName:
+    Type: String
+    Default: OdineyesScanner
+    AllowedPattern: "^[A-Za-z0-9+=,.@_-]{1,64}$"
+    Description: >-
+      Name of the role in the platform account allowed to assume this role.
+      One-click onboarding supplies the exact principal ARN instead.
+
+  CSPMPlatformPrincipalArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:iam::[0-9]{12}:(role|user)/[A-Za-z0-9_+=,.@/-]+$"
+    Description: >-
+      Optional. Exact ARN of the platform principal, used verbatim instead of
+      deriving arn:<partition>:iam::<account>:role/<CSPMPlatformRoleName>.
+      Set this when the platform assumes from an IAM user or any principal that
+      is not a plain role. Must still live in CSPMPlatformAccountId.
+
+  ExternalId:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    MaxLength: 128
+    AllowedPattern: "^[A-Za-z0-9+=,.@:\\/_-]{32,128}$"
+    Description: >-
+      Tenant-specific secret issued by the CSPM platform. Prevents the confused
+      deputy problem. Never reuse across tenants.
+
+  OnboardingToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    MinLength: 0
+    MaxLength: 512
+    # Dots are allowed because the session-flow token is dot-delimited
+    # (v1.<session>.<expiry>.<nonce>.<hmac>); the per-account token is plain
+    # url-safe base64. Both must pass, or the stack is rejected at review.
+    AllowedPattern: "^$|^[A-Za-z0-9_.-]{32,512}$"
+    Description: >-
+      Short-lived, single-use token authorising this stack to report its role ARN
+      back to the CSPM platform exactly once. Pre-filled from your onboarding
+      link. Leave empty to deploy manually and hand over the role ARN yourself.
+
+  CallbackUrl:
+    Type: String
+    Default: ""
+    AllowedPattern: "^(https://.+)?$"
+    ConstraintDescription: must be an HTTPS URL, or empty to disable the callback
+    Description: >-
+      HTTPS endpoint this stack reports the created role ARN to. Pre-filled from
+      your onboarding link. Empty disables the automatic callback entirely.
+
+  RealtimeEventBusArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:events:[a-z0-9-]+:[0-9]{12}:event-bus/[A-Za-z0-9_.-]{1,256}$"
+    Description: Optional regional EventBridge ingress bus for filtered security mutation events.
+
+  EnableRealtimeCloudTrail:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Opt in to create a dedicated regional CloudTrail trail for write-only
+      management events. Enable only when this account has no suitable active
+      trail already. The trail writes to a dedicated encrypted S3 bucket and
+      supplies the CloudTrail events consumed by the realtime EventBridge rule.
+
+  RealtimeTrailRetentionDays:
+    Type: Number
+    Default: 90
+    MinValue: 7
+    MaxValue: 3653
+    Description: >-
+      Days to retain logs in the dedicated realtime CloudTrail bucket. Applies
+      only when EnableRealtimeCloudTrail is true.
+
+  RoleName:
+    Type: String
+    Default: OdineyesReadOnly
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "^[A-Za-z0-9+=,.@_-]{1,64}$"
+    Description: Name of the role the CSPM platform will assume.
+
+  MaxSessionDurationSeconds:
+    Type: Number
+    Default: 3600
+    # IAM's floor for a role's MaxSessionDuration is 3600, not the 900 that
+    # sts:AssumeRole itself accepts for DurationSeconds.
+    MinValue: 3600
+    MaxValue: 43200
+
+  PermissionsBoundaryArn:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^arn:aws[a-z-]*:iam::[0-9]{12}:policy/[A-Za-z0-9_+=,.@/-]+$"
+    Description: Optional permissions boundary applied to the created roles.
+
+  EnableDiskScanning:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Create a separate role that can create approved EBS scan snapshots and
+      read their blocks through EBS Direct for Trivy VM scanning. Kept separate
+      from the read role so the data-access Deny guard stays absolute on the
+      inventory path.
+      IMPORTANT: if any volume is encrypted with a customer managed KMS key,
+      granting this role kms:CreateGrant is only half of it — the key policy on
+      each CMK must also allow this role, or those volumes silently fail to
+      scan. This stack cannot do that for you: it does not own your keys. The
+      role ARN to add is shown as the DiskScanRoleArn stack output.
+
+  ScannerAccountId:
+    Type: String
+    Default: ""
+    AllowedPattern: "^([0-9]{12})?$"
+    Description: Optional scanner account for the future mounted-volume workflow. EBS Direct scanning does not share snapshots.
+
+Conditions:
+  HasBoundary: !Not [!Equals [!Ref PermissionsBoundaryArn, ""]]
+  HasExplicitPrincipal: !Not [!Equals [!Ref CSPMPlatformPrincipalArn, ""]]
+  # One-click onboarding reports the role ARN back automatically. Both values
+  # arrive together from the launch link; without them the stack is a plain
+  # manual deployment and creates no Lambda at all.
+  AutoConnect: !And
+    - !Not [!Equals [!Ref CallbackUrl, ""]]
+    - !Not [!Equals [!Ref OnboardingToken, ""]]
+  ScanEnabled: !Equals [!Ref EnableDiskScanning, "true"]
+  RealtimeEnabled: !Not [!Equals [!Ref RealtimeEventBusArn, ""]]
+  RealtimeCloudTrailEnabled: !And
+    - !Not [!Equals [!Ref RealtimeEventBusArn, ""]]
+    - !Equals [!Ref EnableRealtimeCloudTrail, "true"]
+
+Rules:
+  ScannerAccountRequired:
+    RuleCondition: !Equals [!Ref EnableDiskScanning, "true"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ScannerAccountId, ""]]
+        AssertDescription: ScannerAccountId is required when EnableDiskScanning is true.
+  RealtimeCloudTrailRequiresQueue:
+    RuleCondition: !Equals [!Ref EnableRealtimeCloudTrail, "true"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref RealtimeEventBusArn, ""]]
+        AssertDescription: RealtimeEventBusArn is required when EnableRealtimeCloudTrail is true.
+
+Resources:
+  RealtimeCloudTrailLogBucket:
+    Type: AWS::S3::Bucket
+    Condition: RealtimeCloudTrailEnabled
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: RetainRealtimeCloudTrailLogs
+            Status: Enabled
+            ExpirationInDays: !Ref RealtimeTrailRetentionDays
+            NoncurrentVersionExpiration:
+              NoncurrentDays: !Ref RealtimeTrailRetentionDays
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+        - Key: Purpose
+          Value: OdineyesRealtimeCloudTrail
+
+  RealtimeCloudTrailLogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: RealtimeCloudTrailEnabled
+    Properties:
+      Bucket: !Ref RealtimeCloudTrailLogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt RealtimeCloudTrailLogBucket.Arn
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub "${RealtimeCloudTrailLogBucket.Arn}/odineyes/realtime/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt RealtimeCloudTrailLogBucket.Arn
+              - !Sub "${RealtimeCloudTrailLogBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  RealtimeCloudTrail:
+    Type: AWS::CloudTrail::Trail
+    Condition: RealtimeCloudTrailEnabled
+    DependsOn: RealtimeCloudTrailLogBucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      # The EventBridge rule is regional, so this dedicated trail is regional
+      # too. Do not enable it when the account already has an active trail that
+      # provides these write management events.
+      TrailName: !Sub "odineyes-realtime-${AWS::AccountId}-${AWS::Region}"
+      S3BucketName: !Ref RealtimeCloudTrailLogBucket
+      S3KeyPrefix: odineyes/realtime
+      IsLogging: true
+      IsMultiRegionTrail: false
+      IncludeGlobalServiceEvents: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - IncludeManagementEvents: true
+          ReadWriteType: WriteOnly
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+        - Key: Purpose
+          Value: OdineyesRealtimeCloudTrail
+
+  RealtimeDeliveryDLQ:
+    Type: AWS::SQS::Queue
+    Condition: RealtimeEnabled
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  RealtimeDeliveryRole:
+    Type: AWS::IAM::Role
+    Condition: RealtimeEnabled
+    Properties:
+      Description: Delivers filtered regional CloudTrail mutations to the Odineyes ingress bus.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:rule/odineyes-security-mutations-${AWS::AccountId}-${AWS::Region}"
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: SendOnlyToOdineyesRealtimeIngressBus
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Ref RealtimeEventBusArn
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+
+  RealtimeMutationRule:
+    Type: AWS::Events::Rule
+    Condition: RealtimeEnabled
+    Properties:
+      Name: !Sub "odineyes-security-mutations-${AWS::AccountId}-${AWS::Region}"
+      Description: Sends only security-relevant AWS mutations to the Odineyes ingress bus.
+      State: ENABLED
+      EventPattern:
+        source: [aws.ec2, aws.s3, aws.iam, aws.rds, aws.kms, aws.lambda, aws.eks, aws.ecs]
+        detail-type: [AWS API Call via CloudTrail]
+        detail:
+          eventName:
+            - AuthorizeSecurityGroupIngress
+            - RevokeSecurityGroupIngress
+            - ModifySecurityGroupRules
+            - CreateSecurityGroup
+            - DeleteSecurityGroup
+            - PutBucketPolicy
+            - DeleteBucketPolicy
+            - PutBucketAcl
+            - PutPublicAccessBlock
+            - DeletePublicAccessBlock
+            - AttachRolePolicy
+            - DetachRolePolicy
+            - PutRolePolicy
+            - DeleteRolePolicy
+            - UpdateAssumeRolePolicy
+            - CreatePolicyVersion
+            - SetDefaultPolicyVersion
+            - CreateAccessKey
+            - DeleteAccessKey
+            - ModifyDBInstance
+            - ModifyDBCluster
+            - PutKeyPolicy
+            - UpdateFunctionConfiguration
+            - UpdateClusterConfig
+            - UpdateService
+      Targets:
+        - Id: OdineyesRealtimeIngressBus
+          Arn: !Ref RealtimeEventBusArn
+          RoleArn: !GetAtt RealtimeDeliveryRole.Arn
+          DeadLetterConfig:
+            Arn: !GetAtt RealtimeDeliveryDLQ.Arn
+
+  RealtimeDeliveryDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Condition: RealtimeEnabled
+    Properties:
+      Queues: [!Ref RealtimeDeliveryDLQ]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt RealtimeDeliveryDLQ.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt RealtimeMutationRule.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  CSPMAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Read-only cross-account role for CSPM-G3 posture collection.
+      MaxSessionDuration: !Ref MaxSessionDurationSeconds
+      PermissionsBoundary: !If [HasBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue"]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CSPMPlatformAssumeRole
+            Effect: Allow
+            Principal:
+              AWS: !If
+                - HasExplicitPrincipal
+                - !Ref CSPMPlatformPrincipalArn
+                - !Sub "arn:${AWS::Partition}:iam::${CSPMPlatformAccountId}:role/${CSPMPlatformRoleName}"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+          - Sid: DenyAssumeWithoutExternalId
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Action: sts:AssumeRole
+            Condition:
+              StringNotEquals:
+                sts:ExternalId: !Ref ExternalId
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Action: sts:AssumeRole
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+      # SecurityAudit only. ViewOnlyAccess used to be attached here too, but it
+      # grants List/Describe across effectively every service — far past what is
+      # collected, and impossible to hand an auditor as "exactly what we read".
+      # The four policies below name every service the collectors touch, so it
+      # was pure surplus. If a collector ever does lose an action, Verify reports
+      # it by name rather than it failing silently.
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/SecurityAudit"
+        - !Ref CSPMReadCorePolicy
+        - !Ref CSPMReadDataPolicy
+        - !Ref CSPMReadSecurityPolicy
+        - !Ref CSPMDataGuardPolicy
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+        - Key: Purpose
+          Value: cloud-security-posture-management
+
+  # ---------------------------------------------------------------- read: core
+  CSPMReadCorePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${RoleName}-Read-Core"
+      Description: Compute, containers, storage, network and identity configuration reads.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ComputeAndImages
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - ec2:Get*
+              - ec2:Search*
+              - autoscaling:GetPredictiveScalingForecast
+              - imagebuilder:Get*
+              - imagebuilder:List*
+              - lightsail:Get*
+              - outposts:Get*
+              - outposts:List*
+              - ssm:GetInventory
+              - ssm:GetInventorySchema
+              - ssm:GetPatchBaseline
+              - ssm:GetServiceSetting
+              - ssm:GetDeployablePatchSnapshotForInstance
+              - ssm:GetMaintenanceWindow*
+              - ssm:GetDocument
+              - ssm:GetOpsSummary
+              - ssm:GetConnectionStatus
+              - ssm:GetCalendarState
+              - ec2:ListImagesInRecycleBin
+              - ec2:ListSnapshotsInRecycleBin
+              - ec2:ListVolumesInRecycleBin
+              - ssm:GetDefaultPatchBaseline
+              - ssm:ListCloudConnectors
+              - ssm:ListCommandInvocations
+              - ssm:ListNodes
+              - ssm:ListOpsItemEvents
+              - ssm:ListOpsItemRelatedItems
+          - Sid: ContainersAndServerless
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - ecs:Describe*
+              - ecs:List*
+              - ecr:Describe*
+              - ecr:List*
+              - ecr:GetLifecyclePolicy
+              - ecr:GetRegistryPolicy
+              - ecr:GetRegistryScanningConfiguration
+              - ecr:GetRepositoryPolicy
+              - ecr:BatchGetImage
+              - ecr:BatchGetRepositoryScanningConfiguration
+              - ecr-public:Describe*
+              - ecr-public:List*
+              - ecr-public:GetRepositoryPolicy
+              - eks:Describe*
+              - eks:List*
+              - batch:Describe*
+              - batch:List*
+              - lambda:Get*
+              - lambda:List*
+              - apprunner:Describe*
+              - apprunner:List*
+              - states:Describe*
+              - states:List*
+              - elasticbeanstalk:Describe*
+              - elasticbeanstalk:List*
+              - ecr:GetSigningConfiguration
+          - Sid: StorageAndBackup
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - s3:GetAccelerateConfiguration
+              - s3:GetAccessPoint*
+              - s3:GetAccountPublicAccessBlock
+              - s3:GetAnalyticsConfiguration
+              - s3:GetBucket*
+              - s3:GetEncryptionConfiguration
+              - s3:GetIntelligentTieringConfiguration
+              - s3:GetInventoryConfiguration
+              - s3:GetLifecycleConfiguration
+              - s3:GetMetricsConfiguration
+              - s3:GetMultiRegionAccessPoint*
+              - s3:GetReplicationConfiguration
+              - s3:GetStorageLensConfiguration*
+              - s3:List*
+              - s3express:GetBucketPolicy
+              - s3express:List*
+              - glacier:Describe*
+              - glacier:Get*
+              - glacier:List*
+              - elasticfilesystem:Describe*
+              - fsx:Describe*
+              - fsx:List*
+              - backup:Describe*
+              - backup:Get*
+              - backup:List*
+              - storagegateway:Describe*
+              - storagegateway:List*
+              - datasync:Describe*
+              - datasync:List*
+              - transfer:Describe*
+              - transfer:List*
+              - dlm:Get*
+          - Sid: NetworkAndEdge
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - elasticloadbalancing:Describe*
+              - cloudfront:Describe*
+              - cloudfront:Get*
+              - cloudfront:List*
+              - route53:Get*
+              - route53:List*
+              - route53domains:Get*
+              - route53domains:List*
+              - route53resolver:Get*
+              - route53resolver:List*
+              - globalaccelerator:Describe*
+              - globalaccelerator:List*
+              - apigateway:GET
+              - networkmanager:Describe*
+              - networkmanager:Get*
+              - networkmanager:List*
+              - network-firewall:Describe*
+              - network-firewall:List*
+              - vpc-lattice:Get*
+              - vpc-lattice:List*
+              - directconnect:Describe*
+              - appmesh:Describe*
+              - appmesh:List*
+              - servicediscovery:Get*
+              - servicediscovery:List*
+              - directconnect:ListVirtualInterfaceTestHistory
+          - Sid: IdentityAndAccess
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - iam:Get*
+              - iam:List*
+              - iam:GenerateCredentialReport
+              - iam:GenerateServiceLastAccessedDetails
+              - iam:SimulateCustomPolicy
+              - iam:SimulatePrincipalPolicy
+              - sso:Describe*
+              - sso:Get*
+              - sso:List*
+              - sso-directory:Describe*
+              - sso-directory:List*
+              - identitystore:Describe*
+              - identitystore:List*
+              - cognito-idp:Describe*
+              - cognito-idp:Get*
+              - cognito-idp:List*
+              - cognito-identity:Describe*
+              - cognito-identity:Get*
+              - cognito-identity:List*
+              - ds:Describe*
+              - ds:Get*
+              - ds:List*
+              - sts:GetCallerIdentity
+              - sts:DecodeAuthorizationMessage
+              # Verified Permissions holds application-level entitlements. CIEM
+              # that reads only IAM misses authorisation decided by Cedar policy.
+              - verifiedpermissions:Get*
+              - verifiedpermissions:List*
+
+  # ---------------------------------------------------------------- read: data
+  CSPMReadDataPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${RoleName}-Read-Data"
+      Description: Database, analytics, streaming, messaging and AI/ML configuration reads.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RelationalDatabases
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - rds:Describe*
+              - rds:List*
+              - redshift:Describe*
+              - redshift:Get*
+              - redshift:List*
+              - redshift-serverless:Get*
+              - redshift-serverless:List*
+              - neptune-db:GetEngineStatus
+              - docdb-elastic:Get*
+              - docdb-elastic:List*
+              - qldb:Describe*
+              - qldb:List*
+              - timestream:Describe*
+              - timestream:List*
+          - Sid: NoSqlAndCaches
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - dynamodb:Describe*
+              - dynamodb:List*
+              - dax:Describe*
+              - dax:List*
+              - elasticache:Describe*
+              - elasticache:List*
+              - memorydb:Describe*
+              - memorydb:List*
+          - Sid: AnalyticsAndStreaming
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - athena:Get*
+              - athena:List*
+              - glue:Get*
+              - glue:List*
+              - glue:BatchGet*
+              - lakeformation:Describe*
+              - lakeformation:Get*
+              - lakeformation:List*
+              - es:Describe*
+              - es:Get*
+              - es:List*
+              - opensearch:Get*
+              - opensearch:List*
+              - kinesis:Describe*
+              - kinesis:List*
+              - firehose:Describe*
+              - firehose:List*
+              - kinesisanalytics:Describe*
+              - kinesisanalytics:List*
+              - kafka:Describe*
+              - kafka:Get*
+              - kafka:List*
+              - kafkaconnect:Describe*
+              - kafkaconnect:List*
+              - elasticmapreduce:Describe*
+              - elasticmapreduce:Get*
+              - elasticmapreduce:List*
+              - emr-serverless:Get*
+              - emr-serverless:List*
+              - quicksight:Describe*
+              - quicksight:List*
+              - datazone:Get*
+              - datazone:List*
+              - glue:DescribeInboundIntegrations
+              - glue:DescribeIntegrations
+              - glue:SearchTables
+          - Sid: MessagingAndIntegration
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - sns:Get*
+              - sns:List*
+              - sqs:Get*
+              - sqs:List*
+              - events:Describe*
+              - events:List*
+              - events:TestEventPattern
+              - scheduler:Get*
+              - scheduler:List*
+              - pipes:Describe*
+              - pipes:List*
+              - mq:Describe*
+              - mq:List*
+              - swf:Describe*
+              - swf:Get*
+              - swf:List*
+              - appflow:Describe*
+              - appflow:List*
+              - mediaconnect:Describe*
+              - mediaconnect:List*
+          - Sid: AiMlAndEndUserCompute
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - sagemaker:Describe*
+              - sagemaker:Get*
+              - sagemaker:List*
+              # Agents, knowledge bases and guardrails all live under the
+              # bedrock: prefix, so these wildcards already cover the RAG
+              # surface — no separate bedrock-agent: entries are needed.
+              - bedrock:Get*
+              - bedrock:List*
+              # Q Business is the other place an autonomous agent can be wired
+              # to corporate data sources without appearing in Bedrock at all.
+              - qbusiness:Get*
+              - qbusiness:List*
+              - comprehend:Describe*
+              - comprehend:List*
+              - rekognition:Describe*
+              - rekognition:List*
+              - transcribe:Get*
+              - transcribe:List*
+              - kendra:Describe*
+              - kendra:List*
+              - q:Get*
+              - q:List*
+              - workspaces:Describe*
+              - workspaces-web:Get*
+              - workspaces-web:List*
+              - appstream:Describe*
+              - appstream:List*
+              - worklink:Describe*
+              - worklink:List*
+              - connect:Describe*
+              - connect:List*
+              - iot:Describe*
+              - iot:Get*
+              - iot:List*
+              - appstream:GetExportImageTask
+              - sagemaker:QueryLineage
+              - workspaces:GetAccountLink
+              - workspaces:ListAccountLinks
+
+  # ------------------------------------------------------------ read: security
+  CSPMReadSecurityPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${RoleName}-Read-Security"
+      Description: Security services, crypto, logging, governance and CI/CD supply-chain reads.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: SecurityServices
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - guardduty:Describe*
+              - guardduty:Get*
+              - guardduty:List*
+              - securityhub:Describe*
+              - securityhub:Get*
+              - securityhub:List*
+              - securityhub:BatchGet*
+              - inspector:Describe*
+              - inspector:List*
+              - inspector2:BatchGet*
+              - inspector2:Describe*
+              - inspector2:Get*
+              - inspector2:List*
+              - macie2:Describe*
+              - macie2:Get*
+              - macie2:List*
+              - detective:Get*
+              - detective:List*
+              - access-analyzer:Get*
+              - access-analyzer:List*
+              - access-analyzer:ValidatePolicy
+              - shield:Describe*
+              - shield:Get*
+              - shield:List*
+              - waf:Get*
+              - waf:List*
+              - waf-regional:Get*
+              - waf-regional:List*
+              - wafv2:Describe*
+              - wafv2:Get*
+              - wafv2:List*
+              - securitylake:Get*
+              - securitylake:List*
+              - trustedadvisor:Describe*
+              - trustedadvisor:Get*
+              - trustedadvisor:List*
+              - macie2:BatchGetCustomDataIdentifiers
+              - macie2:SearchResources
+          - Sid: CryptoAndSecrets
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - kms:Describe*
+              - kms:Get*
+              - kms:List*
+              - cloudhsm:Describe*
+              - cloudhsm:List*
+              - acm:Describe*
+              - acm:List*
+              - acm-pca:Describe*
+              - acm-pca:Get*
+              - acm-pca:List*
+              - secretsmanager:Describe*
+              - secretsmanager:GetResourcePolicy
+              - secretsmanager:List*
+              - ssm:DescribeParameters
+              - ssm:ListTagsForResource
+              - payment-cryptography:Get*
+              - payment-cryptography:List*
+              - rolesanywhere:Get*
+              - rolesanywhere:List*
+              - acm:GetAccountConfiguration
+              - acm:SearchCertificates
+          - Sid: LoggingAndAudit
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - cloudtrail:Describe*
+              - cloudtrail:Get*
+              - cloudtrail:List*
+              - cloudtrail:LookupEvents
+              - logs:Describe*
+              - logs:Get*
+              - logs:List*
+              - cloudwatch:Describe*
+              - cloudwatch:Get*
+              - cloudwatch:List*
+              - config:Describe*
+              - config:Get*
+              - config:List*
+              - config:BatchGetResourceConfig
+              - config:SelectResourceConfig
+              - config:SelectAggregateResourceConfig
+              - xray:BatchGet*
+              - xray:Get*
+              - xray:List*
+              - health:Describe*
+              - auditmanager:Get*
+              - auditmanager:List*
+          - Sid: GovernanceAndOrganization
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - organizations:Describe*
+              - organizations:List*
+              - account:Get*
+              - account:List*
+              - controltower:Get*
+              - controltower:List*
+              - servicecatalog:Describe*
+              - servicecatalog:List*
+              - servicecatalog:Search*
+              - cloudformation:Describe*
+              - cloudformation:Detect*
+              - cloudformation:Get*
+              - cloudformation:List*
+              - resource-groups:Get*
+              - resource-groups:List*
+              - resource-explorer-2:Get*
+              - resource-explorer-2:List*
+              - resource-explorer-2:Search
+              - tag:Describe*
+              - tag:Get*
+              - servicequotas:Get*
+              - servicequotas:List*
+              - ce:Get*
+              - ce:List*
+              - ce:Describe*
+              - compute-optimizer:Describe*
+              - compute-optimizer:Get*
+              - ram:Get*
+              - ram:List*
+              - support:Describe*
+              - servicecatalog:GetAWSOrganizationsAccessStatus
+              - servicecatalog:ScanProvisionedProducts
+              - tag:ListRequiredTags
+              - sms-voice:DescribeAccountAttributes
+              - sms-voice:DescribeSpendLimits
+          - Sid: DevOpsSupplyChain
+            Effect: Allow
+            Resource: "*"
+            Action:
+              - codebuild:BatchGet*
+              - codebuild:Describe*
+              - codebuild:List*
+              - codepipeline:Get*
+              - codepipeline:List*
+              # AWS-native SAST findings, so ASPM ingests them rather than
+              # re-scanning source the Deny guardrail already blocks us reading.
+              - codeguru-security:Get*
+              - codeguru-security:List*
+              - codecommit:BatchGet*
+              - codecommit:Get*
+              - codecommit:List*
+              - codeartifact:Describe*
+              - codeartifact:Get*
+              - codeartifact:List*
+              - codedeploy:BatchGet*
+              - codedeploy:Get*
+              - codedeploy:List*
+              - codeconnections:Get*
+              - codeconnections:List*
+              - codestar-connections:Get*
+              - codestar-connections:List*
+              - amplify:Get*
+              - amplify:List*
+              - signer:Describe*
+              - signer:Get*
+              - signer:List*
+              - proton:Get*
+              - proton:List*
+
+  # ------------------------------------------------------------- deny guardrail
+  CSPMDataGuardPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${RoleName}-Data-Guard"
+      Description: >-
+        Explicit Deny guardrail. Narrows the Get*/List*/Describe* wildcards above so
+        the CSPM role can never read secret material, customer data-plane content,
+        log or source content, or escalate/pivot. Deny always wins in IAM.
+        This is a deliberate product boundary, not an oversight: data classification
+        for S3 comes from Macie findings (macie2:Get*/List*, granted above), never
+        from this role reading objects itself. Onboarding probes s3:GetObject and
+        dynamodb:GetItem expecting refusal, so a weakened guard is reported rather
+        than silently trusted. Relaxing this needs a separate opt-in role scoped to
+        named buckets — never a wider grant here.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenySecretMaterial
+            Effect: Deny
+            Resource: "*"
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:BatchGetSecretValue
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+              - ssm:GetParameterHistory
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey
+              - kms:GenerateDataKeyPair
+              - kms:GenerateDataKeyPairWithoutPlaintext
+              - kms:GenerateDataKeyWithoutPlaintext
+              - kms:GenerateRandom
+              - kms:ReEncryptFrom
+              - kms:ReEncryptTo
+              - ec2:GetPasswordData
+              - redshift:GetClusterCredentials
+              - redshift:GetClusterCredentialsWithIAM
+              - rds-db:connect
+              - ecr:GetAuthorizationToken
+              - ecr-public:GetAuthorizationToken
+              - gamelift:GetComputeAuthToken
+              - codeartifact:GetAuthorizationToken
+              - datazone:GetEnvironmentCredentials
+              - elasticmapreduce:GetClusterSessionCredentials
+              - lakeformation:GetDataAccess
+              - lakeformation:GetTemporaryGluePartitionCredentials
+              - lakeformation:GetTemporaryGlueTableCredentials
+              - lightsail:GetRelationalDatabaseMasterUserPassword
+              - redshift-serverless:GetCredentials
+              - storagegateway:DescribeChapCredentials
+          - Sid: DenyCustomerDataPlane
+            Effect: Deny
+            Resource: "*"
+            Action:
+              - s3:GetObject
+              - s3:GetObjectAttributes
+              - s3:GetObjectTorrent
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAttributes
+              - s3:GetObjectVersionForReplication
+              - s3:GetObjectVersionTorrent
+              - s3-object-lambda:GetObject
+              - s3-object-lambda:GetObjectVersion
+              - dynamodb:BatchGetItem
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:PartiQLSelect
+              - dynamodb:Query
+              - dynamodb:Scan
+              - cassandra:Select
+              - sqs:ReceiveMessage
+              - kinesis:GetRecords
+              - kinesis:GetShardIterator
+              - kinesis:SubscribeToShard
+              - athena:GetQueryResults
+              - athena:GetQueryResultsStream
+              - rds-data:ExecuteStatement
+              - rds-data:BatchExecuteStatement
+              - rds-data:ExecuteSql
+              - redshift-data:ExecuteStatement
+              - redshift-data:BatchExecuteStatement
+              - redshift-data:GetStatementResult
+              - timestream:Select
+              - iot:GetThingShadow
+              - iotsitewise:GetAssetPropertyValue
+              - sms-voice:DescribeOptedOutNumbers
+              - sms-voice:DescribePhoneNumbers
+              - sms-voice:DescribeVerifiedDestinationNumbers
+          - Sid: DenyLogAndSourceContent
+            Effect: Deny
+            Resource: "*"
+            Action:
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+              - logs:GetLogRecord
+              - logs:GetQueryResults
+              - logs:StartQuery
+              - logs:StartLiveTail
+              - rds:DownloadDBLogFilePortion
+              - rds:DownloadCompleteDBLogFile
+              - codecommit:GetBlob
+              - codecommit:GetFile
+              - codecommit:GetFolder
+              - codecommit:GitPull
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetPackageVersionAsset
+              - cloudtrail:GetQueryResults
+          - Sid: DenyLateralMovementAndSessionEscalation
+            Effect: Deny
+            Resource: "*"
+            Action:
+              - sts:AssumeRole
+              - sts:AssumeRoleWithSAML
+              - sts:AssumeRoleWithWebIdentity
+              - sts:GetFederationToken
+              - sts:GetSessionToken
+              - iam:PassRole
+              - ssm:StartSession
+              - ssm:SendCommand
+              - ec2-instance-connect:SendSSHPublicKey
+              - ec2-instance-connect:SendSerialConsoleSSHPublicKey
+              - ec2-instance-connect:OpenTunnel
+              - sagemaker:CreatePresignedDomainUrl
+              - sagemaker:CreatePresignedNotebookInstanceUrl
+              - eks:AccessKubernetesApi
+
+  # -------------------------------------------------- optional: disk scan role
+  CSPMDiskScanRole:
+    Type: AWS::IAM::Role
+    Condition: ScanEnabled
+    Properties:
+      RoleName: !Sub "${RoleName}-DiskScan"
+      Description: >-
+        Agentless disk scanning role. Separate from the read role because the
+        read role's Deny guard blocks the KMS grants snapshot copy requires.
+      MaxSessionDuration: !Ref MaxSessionDurationSeconds
+      PermissionsBoundary: !If [HasBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue"]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CSPMPlatformAssumeScanRole
+            Effect: Allow
+            Principal:
+              AWS: !If
+                - HasExplicitPrincipal
+                - !Ref CSPMPlatformPrincipalArn
+                - !Sub "arn:${AWS::Partition}:iam::${CSPMPlatformAccountId}:role/${CSPMPlatformRoleName}"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+          - Sid: DenyAssumeWithoutExternalId
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Action: sts:AssumeRole
+            Condition:
+              StringNotEquals:
+                sts:ExternalId: !Ref ExternalId
+      Policies:
+        - PolicyName: DiskScan
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadSnapshotInventory
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - ec2:DescribeSnapshots
+                  - ec2:DescribeSnapshotAttribute
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeInstances
+                  - ec2:DescribeImages
+                  - ec2:DescribeTags
+                  - kms:DescribeKey
+                  - kms:ListAliases
+              - Sid: ReadSnapshotBlocksForTrivyVm
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - ebs:ListSnapshotBlocks
+                  - ebs:GetSnapshotBlock
+              - Sid: CreateScanSnapshots
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - ec2:CreateSnapshot
+                  - ec2:CreateSnapshots
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/ManagedBy: CSPM-G3
+              - Sid: TagOnlyOnSnapshotCreate
+                Effect: Allow
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:snapshot/*"
+                Action: ec2:CreateTags
+                Condition:
+                  StringEquals:
+                    ec2:CreateAction:
+                      - CreateSnapshot
+                      - CreateSnapshots
+                      - CopySnapshot
+              - Sid: ManageOwnScanSnapshotsOnly
+                Effect: Allow
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:*:snapshot/*"
+                Action:
+                  - ec2:CopySnapshot
+                  - ec2:ModifySnapshotAttribute
+                  - ec2:DeleteSnapshot
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/ManagedBy: CSPM-G3
+              - Sid: ShareSnapshotsOnlyWithScannerAccount
+                Effect: Deny
+                Resource: "*"
+                Action: ec2:ModifySnapshotAttribute
+                Condition:
+                  StringNotEquals:
+                    ec2:Add/userId: !Ref ScannerAccountId
+              - Sid: DenyPublicSnapshotSharing
+                Effect: Deny
+                Resource: "*"
+                Action: ec2:ModifySnapshotAttribute
+                Condition:
+                  StringEquals:
+                    ec2:Add/group: all
+              # Identity-side half of CMK access only. KMS is dual-authorised:
+              # the key policy on each customer managed key must name this role
+              # too. Without it the copy fails at scan time, not at stack time,
+              # so it reads as a broken scanner rather than a missing grant.
+              - Sid: UseCmkForEncryptedSnapshotCopy
+                Effect: Allow
+                Resource: "*"
+                Action:
+                  - kms:CreateGrant
+                  - kms:ReEncryptFrom
+                  - kms:ReEncryptTo
+                  - kms:GenerateDataKeyWithoutPlaintext
+                  - kms:DescribeKey
+                Condition:
+                  StringLike:
+                    kms:ViaService: ec2.*.amazonaws.com
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+
+  # ------------------------------------------------- one-click auto-connect
+  # Created only when the stack was launched from a CSPM-G3 onboarding link.
+  # Its whole job is to POST the role ARN back once, on Create. The customer
+  # never copies an ARN. The ARN CloudFormation
+  # just produced is the account the stack genuinely ran in.
+  CSPMOnboardingFunctionRole:
+    Type: AWS::IAM::Role
+    Condition: AutoConnect
+    Properties:
+      Description: Execution role for the CSPM-G3 onboarding callback. Logs only.
+      PermissionsBoundary: !If [HasBoundary, !Ref PermissionsBoundaryArn, !Ref "AWS::NoValue"]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CSPMOnboardingLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # No AWS data permissions of any kind. The function reads one
+              # string from its own event and makes one HTTPS call.
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+      Tags:
+        - Key: ManagedBy
+          Value: CSPM-G3
+
+  CSPMOnboardingFunction:
+    Type: AWS::Lambda::Function
+    Condition: AutoConnect
+    Properties:
+      Description: Reports the CSPM-G3 role ARN back to the platform, once, on stack create.
+      Runtime: python3.12
+      Handler: index.handler
+      # Generous on purpose. A callback that runs out of time fails the stack,
+      # and the rollback deletes the roles the customer just approved — the
+      # worst outcome in the whole flow. Budget: 3 x 60s callback attempts plus
+      # 2 x 5s backoff plus the 20s CloudFormation response, well inside 300.
+      Timeout: 300
+      MemorySize: 128
+      Role: !GetAtt CSPMOnboardingFunctionRole.Arn
+      Environment:
+        Variables:
+          CSPM_CALLBACK_URL: !Ref CallbackUrl
+          CSPM_EXTERNAL_ID: !Ref ExternalId
+          CSPM_ONBOARDING_TOKEN: !Ref OnboardingToken
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import re
+          import time
+          import traceback
+          import urllib.error
+          import urllib.request
+
+
+          def _respond(event, context, status, data=None, reason=None):
+              # CloudFormation only learns the outcome from this presigned S3
+              # URL. A failed callback may be reported as FAILED, but a failed
+              # response PUT leaves the stack waiting and can also block Delete.
+              # Retry transport failures with the same immutable response body.
+              body = json.dumps({
+                  "Status": status,
+                  "Reason": reason or f"See CloudWatch Log Stream: {context.log_stream_name}",
+                  "PhysicalResourceId": event.get("PhysicalResourceId") or "cspm-g3-onboarding",
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "NoEcho": False,
+                  "Data": data or {},
+              }).encode("utf-8")
+              last_error = None
+              for attempt in range(1, 4):
+                  try:
+                      request = urllib.request.Request(
+                          event["ResponseURL"], data=body, method="PUT",
+                          headers={"content-type": "", "content-length": str(len(body))},
+                      )
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          response.read()
+                      return
+                  except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+                      last_error = exc
+                      print(
+                          f"CloudFormation response PUT attempt {attempt}/3 failed: {exc}",
+                          flush=True,
+                      )
+                      if attempt < 3:
+                          time.sleep(attempt * 2)
+              raise RuntimeError("CloudFormation response PUT failed after 3 attempts") from last_error
+
+
+          def _post(url, body, attempts=3):
+              # Onboarding is one-shot: any failure here rolls the stack back and
+              # deletes the roles the customer just approved, so a slow or briefly
+              # unhealthy platform must not cost them the run. Retrying is safe
+              # because redeeming is idempotent for an identical role ARN — a
+              # retry after a timeout that actually landed still answers
+              # "connected" instead of enrolling the account twice.
+              for attempt in range(1, attempts + 1):
+                  try:
+                      request = urllib.request.Request(url, data=body, method="POST")
+                      request.add_header("Content-Type", "application/json")
+                      with urllib.request.urlopen(request, timeout=60) as response:
+                          return json.loads(response.read().decode("utf-8"))
+                  except urllib.error.HTTPError as exc:
+                      # A 4xx is a verdict, not a hiccup: the token is expired,
+                      # spent or forged. Retrying cannot change the answer, so
+                      # fail now rather than stalling the stack for three minutes.
+                      if exc.code < 500 or attempt == attempts:
+                          raise
+                  except urllib.error.URLError:
+                      if attempt == attempts:
+                          raise
+                  time.sleep(5)
+
+
+          def _connect(event):
+              # Updates re-register an optional real-time delivery role. Delete
+              # never deactivates an account implicitly.
+              if event["RequestType"] == "Delete":
+                  return {"connection": "unchanged"}
+
+              role_arn = event["ResourceProperties"]["RoleArn"]
+              # The account id comes from the ARN CloudFormation just produced,
+              # not from anything the customer typed, so it is the account the
+              # stack genuinely ran in. The platform re-checks it by assuming
+              # the role before trusting anything.
+              match = re.match(r"arn:aws[a-z-]*:iam::(\d{12}):role/", role_arn)
+              if not match:
+                  raise RuntimeError(f"unrecognised role ARN: {role_arn}")
+
+              payload = {
+                  "token": os.environ["CSPM_ONBOARDING_TOKEN"],
+                  "external_id": os.environ["CSPM_EXTERNAL_ID"],
+                  "role_arn": role_arn,
+                  "account_identifier": match.group(1),
+                  "cloud": "aws",
+              }
+              disk_scan_role_arn = event["ResourceProperties"].get("DiskScanRoleArn")
+              if disk_scan_role_arn:
+                  payload["disk_scan_role_arn"] = disk_scan_role_arn
+              realtime_role_arn = event["ResourceProperties"].get("RealtimeRoleArn")
+              if realtime_role_arn:
+                  payload["realtime_role_arn"] = realtime_role_arn
+                  payload["realtime_region"] = event["ResourceProperties"].get("RealtimeRegion")
+              body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+              result = _post(os.environ["CSPM_CALLBACK_URL"], body)
+              if result.get("status") != "connected":
+                  raise RuntimeError(f"unexpected CSPM-G3 response: {result}")
+              return {
+                  "connection": "connected",
+                  "role_arn": role_arn,
+                  "disk_scan_role_arn": disk_scan_role_arn or "disabled",
+                  "realtime_role_arn": realtime_role_arn or "disabled",
+                  "account": match.group(1),
+              }
+
+
+          def handler(event, context):
+              try:
+                  result = _connect(event)
+              except Exception as exc:
+                  # A failed callback fails the stack on purpose. Silent partial
+                  # onboarding (role created while platform remains unaware) is worse than
+                  # a visible rollback.
+                  print(traceback.format_exc())
+                  _respond(event, context, "FAILED", {"connection": "failed"}, str(exc))
+                  return
+              _respond(event, context, "SUCCESS", result)
+
+  CSPMOnboarding:
+    Type: Custom::CSPMOnboarding
+    Condition: AutoConnect
+    Properties:
+      # Bound CloudFormation wait to Lambda timeout. This avoids a one-hour
+      # stuck rollback when a customer network policy prevents ResponseURL PUT.
+      ServiceTimeout: 300
+      # No DependsOn needed: both GetAtt references already order this after
+      # the role and the function.
+      ServiceToken: !GetAtt CSPMOnboardingFunction.Arn
+      RoleArn: !GetAtt CSPMAccessRole.Arn
+      DiskScanRoleArn: !If [ScanEnabled, !GetAtt CSPMDiskScanRole.Arn, ""]
+      RealtimeRoleArn: !If [RealtimeEnabled, !GetAtt RealtimeDeliveryRole.Arn, ""]
+      RealtimeRegion: !If [RealtimeEnabled, !Ref AWS::Region, ""]
+
+Outputs:
+  RoleArn:
+    Description: >-
+      Reported to CSPM-G3 automatically when the stack completes. Only needs
+      copying if this stack was deployed without an onboarding link.
+    Value: !GetAtt CSPMAccessRole.Arn
+  DiskScanRoleArn:
+    Condition: ScanEnabled
+    Description: Optional role used only for explicitly enabled agentless EBS scanning.
+    Value: !GetAtt CSPMDiskScanRole.Arn
+  AccountId:
+    Description: AWS account in which the onboarding stack was deployed.
+    Value: !Ref "AWS::AccountId"
+  Partition:
+    Description: AWS partition in which the onboarding stack was deployed.
+    Value: !Ref "AWS::Partition"
+  RealtimeRoleArn:
+    Condition: RealtimeEnabled
+    Description: EventBridge delivery role allowed to publish to the Odineyes ingress bus.
+    Value: !GetAtt RealtimeDeliveryRole.Arn
+  RealtimeCloudTrailArn:
+    Condition: RealtimeCloudTrailEnabled
+    Description: Dedicated regional CloudTrail trail that provides realtime write management events.
+    Value: !GetAtt RealtimeCloudTrail.Arn
+  RealtimeCloudTrailLogBucketName:
+    Condition: RealtimeCloudTrailEnabled
+    Description: Retained, encrypted S3 bucket containing the dedicated realtime CloudTrail logs.
+    Value: !Ref RealtimeCloudTrailLogBucket

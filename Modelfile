@@ -1,0 +1,2 @@
+FROM futuretea/deepseek-r1-tools:32b
+PARAMETER num_ctx 16384

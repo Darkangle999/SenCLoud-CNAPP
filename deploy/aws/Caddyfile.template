@@ -1,0 +1,36 @@
+:80 {
+    # Machine callbacks from a customer's AWS account cannot complete basic
+    # authentication, so exactly these two routes are excluded. Neither is
+    # unauthenticated in substance: /autoconnect verifies an account-bound HMAC,
+    # /onboarding-callback verifies a signed, single-use, expiring token. Both
+    # then re-check that the reported role ARN belongs to the reported account.
+    # Anything a caller asserts is validated against state we already hold.
+    @machine_callbacks path /api/inventory/accounts/autoconnect /api/inventory/accounts/onboarding-callback
+    handle @machine_callbacks {
+        reverse_proxy odineyes-api:8000
+    }
+
+    # Every dashboard page and every other API path needs browser basic auth.
+    # The generated value is a bcrypt hash; the plaintext exists only in SSM.
+    @dashboard_routes not path /api/inventory/accounts/autoconnect /api/inventory/accounts/onboarding-callback
+    basic_auth @dashboard_routes bcrypt {
+        odineyes __DASHBOARD_PASSWORD_HASH__
+    }
+
+    @realtime path /api/realtime/ws /api/realtime/health
+    handle @realtime {
+        uri strip_prefix /api/realtime
+        reverse_proxy odineyes-realtime:8090
+    }
+
+    @api path /api/*
+    handle @api {
+        reverse_proxy odineyes-api:8000
+    }
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}

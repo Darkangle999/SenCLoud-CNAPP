@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Private, encrypted S3 storage for short-lived Odineyes CloudFormation
+  onboarding templates. Attach the output policy to the Odineyes API workload.
+
+Parameters:
+  OnboardingTemplatePrefix:
+    Type: String
+    Default: cloudformation-onboarding
+    AllowedPattern: '^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$'
+    Description: Private S3 key prefix for reusable customer onboarding YAML files.
+  LocalTemplateOperatorPrincipalArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws[a-z-]*:iam::[0-9]{12}:(role|user)/[A-Za-z0-9_+=,.@/-]+$'
+    Description: >-
+      Optional IAM user or role ARN used when Odineyes API runs locally. It gets
+      access only to onboarding templates under OnboardingTemplatePrefix.
+
+Conditions:
+  HasLocalTemplateOperator: !Not [!Equals [!Ref LocalTemplateOperatorPrincipalArn, '']]
+
+Resources:
+  OnboardingTemplateBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOneClickTemplates
+            Status: Enabled
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+
+  OnboardingTemplateBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasLocalTemplateOperator
+    Properties:
+      Bucket: !Ref OnboardingTemplateBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowLocalOperatorTemplateObjects
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource: !Sub '${OnboardingTemplateBucket.Arn}/${OnboardingTemplatePrefix}/*'
+          - Sid: AllowLocalOperatorTemplatePrefixListing
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action: s3:ListBucket
+            Resource: !GetAtt OnboardingTemplateBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix:
+                  - !Ref OnboardingTemplatePrefix
+                  - !Sub '${OnboardingTemplatePrefix}/*'
+          - Sid: AllowLocalOperatorBucketPostureCheck
+            Effect: Allow
+            Principal:
+              AWS: !Ref LocalTemplateOperatorPrincipalArn
+            Action: s3:GetBucketPolicyStatus
+            Resource: !GetAtt OnboardingTemplateBucket.Arn
+
+Outputs:
+  OnboardingTemplateBucketName:
+    Description: Set this as ODINEYES_ONBOARDING_TEMPLATE_BUCKET.
+    Value:
+      Ref: OnboardingTemplateBucket
+  OnboardingTemplatePrefix:
+    Description: Set this as ODINEYES_ONBOARDING_TEMPLATE_PREFIX.
+    Value:
+      Ref: OnboardingTemplatePrefix
+  LocalTemplateOperatorPrincipalArn:
+    Condition: HasLocalTemplateOperator
+    Description: Local API principal granted scoped onboarding-template access.
+    Value: !Ref LocalTemplateOperatorPrincipalArn
+  ApiWorkloadPolicy:
+    Description: >
+      Attach this least-privilege policy to the Odineyes API workload identity.
+      It publishes a template and signs a short-lived read URL for CloudFormation.
+    Value:
+      Fn::Sub:
+        - |
+          {"Version":"2012-10-17","Statement":[{"Sid":"PublishOneClickOnboardingTemplates","Effect":"Allow","Action":["s3:PutObject","s3:GetObject"],"Resource":"${BucketArn}/${OnboardingTemplatePrefix}/*"},{"Sid":"ListOnboardingTemplateBucket","Effect":"Allow","Action":"s3:ListBucket","Resource":"${BucketArn}","Condition":{"StringLike":{"s3:prefix":["${OnboardingTemplatePrefix}","${OnboardingTemplatePrefix}/*"]}}}]}
+        - BucketArn:
+            Fn::GetAtt:
+              - OnboardingTemplateBucket
+              - Arn

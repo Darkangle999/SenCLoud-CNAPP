@@ -2,6 +2,13 @@
 
 Odineyes is an enterprise-grade CNAPP (Cloud-Native Application Protection Platform) designed to identify, correlate, and visualize multi-hop "toxic combinations" across your AWS cloud infrastructure and source code.
 
+## License
+
+Copyright (C) 2026 Odineyes Team. Project-authored material is licensed under
+the GNU General Public License version 2 or any later version, at your option
+(`GPL-2.0-or-later`). See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md)
+for scope and third-party notices.
+
 ## CNAPP product demo
 
 The frontend includes an isolated demo workspace with sample cloud assets, findings,
